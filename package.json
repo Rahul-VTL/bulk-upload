@@ -1,0 +1,14 @@
+{
+  "name": "data-importer-monorepo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter data-importer build",
+    "test": "pnpm --filter data-importer test",
+    "dev": "pnpm --filter playground dev",
+    "typecheck": "pnpm --filter data-importer typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
