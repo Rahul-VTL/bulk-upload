@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "data-importer": "workspace:*",
+    "@rahul_kumar_sharma/data-importer": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

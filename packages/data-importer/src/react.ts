@@ -7,6 +7,7 @@ import './theme/theme.css';
 export * from './types';
 export * from './hooks/useDataImporter';
 export * from './components/DataImporter';
+export * from './components/DataImporterModal';
 export * from './components/common/Header';
 export * from './components/common/Icons';
 export * from './components/upload/UploadZone';

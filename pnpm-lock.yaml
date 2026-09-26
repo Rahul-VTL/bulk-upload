@@ -14,7 +14,7 @@ importers:
 
   apps/playground:
     dependencies:
-      data-importer:
+      '@rahul_kumar_sharma/data-importer':
         specifier: workspace:*
         version: link:../../packages/data-importer
       react:

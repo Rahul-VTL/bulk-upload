@@ -1,5 +1,5 @@
 {
-  "name": "data-importer",
+  "name": "@rahul_kumar_sharma/data-importer",
   "version": "1.0.0",
   "description": "Production-grade, reusable, framework-agnostic Data Importer, Data Preparation & Editable Spreadsheet Library",
   "type": "module",
@@ -17,13 +17,19 @@
       "import": "./dist/react.js",
       "default": "./dist/react.js"
     },
-    "./styles.css": "./dist/styles.css"
+    "./styles.css": "./dist/react.css",
+    "./react.css": "./dist/react.css"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsup",
+    "prepublishOnly": "tsup && vitest run",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

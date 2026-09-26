@@ -32,6 +32,7 @@ export interface DataImporterProps {
   ) => Promise<ImportResult | ImportRowResult[] | void>;
   onComplete?: (result: ImportResult) => void;
   onCancel?: () => void;
+  initialFile?: File | null;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -48,6 +49,7 @@ export const DataImporter: React.FC<DataImporterProps> = ({
   onImport,
   onComplete,
   onCancel,
+  initialFile,
   className = '',
   style
 }) => {
@@ -64,6 +66,14 @@ export const DataImporter: React.FC<DataImporterProps> = ({
   });
 
   const { state } = importerApi;
+
+  React.useEffect(() => {
+    if (initialFile) {
+      importerApi.loadFile(initialFile).catch((err) => {
+        console.error('Failed to load initial file:', err);
+      });
+    }
+  }, [initialFile]);
 
   // Compute CSS custom properties from theme object
   const themeStyles = useMemo<React.CSSProperties>(() => {
