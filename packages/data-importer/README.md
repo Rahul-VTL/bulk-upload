@@ -16,7 +16,7 @@
 - **Completely Generic**: Knows **nothing** about backend APIs, databases, authentication, or domain models.
 - **Consumer Controlled**: The host application owns APIs, authentication, permissions, database schemas, and business submission.
 - **Layered Architecture**: Zero-dependency core headless engine (`data-importer`) paired with a React adapter (`data-importer/react`) and Web Component wrapper (`<generic-data-importer>`).
-- **Original UI/UX**: Professional enterprise spreadsheet interface with original styling, design tokens, and no commercial clones.
+- **Flexible UI System**: Use the enterprise-grade **Default UI out-of-the-box**, customize via slot overrides & render props, or build a **100% custom UI** with headless primitives.
 
 ```
 FILE → PARSE → MAP → TRANSFORM → VALIDATE → EDIT → REVIEW → IMPORT
@@ -31,6 +31,8 @@ FILE → PARSE → MAP → TRANSFORM → VALIDATE → EDIT → REVIEW → IMPORT
 | **Multi-Format Parsing** | RFC-4180 CSV, TSV, XLS, XLSX. State-machine handling for quotes, newlines, escaped quotes, BOM stripping, delimiter autodetection. |
 | **Multi-Sheet Workbooks** | Interactive worksheet detection, row/column counts, and sheet selection. |
 | **Intelligent Mapping** | 6 matching strategies: Exact, Case-Insensitive, Trimmed, Normalized, Alias, and Fuzzy matching with 0-1 confidence scoring. |
+| **High-Column Scalability** | Smooth vertical and horizontal scrolling with **sticky column headers** in mapping and review when files contain dozens or hundreds of columns. |
+| **Bidirectional Navigation** | Effortlessly return to **Column Mapping** from the review spreadsheet, jump back via interactive header stepper clicks, or go back to change sheets. |
 | **Transformation Pipeline** | Built-in rules (`trim`, `uppercase`, `lowercase`, `capitalize`, `removeWhitespace`, `stringToNumber`, `stringToBoolean`, `stringToDate`, `normalizeDate`) and custom transformers. |
 | **Comprehensive Validation** | Required, Email, Phone, Number, Integer, Date, Min/Max bounds, Regex, Enum, Custom Sync/Async, and Cross-Field validation. |
 | **Duplicate Detection** | Single-field, composite-key deduplication (`keep-first`, `keep-last`, `reject`, `allow-warning`) and external database checks (`checkDuplicate`). |
@@ -38,7 +40,7 @@ FILE → PARSE → MAP → TRANSFORM → VALIDATE → EDIT → REVIEW → IMPORT
 | **Search, Sort & Filter** | Global text search, multi-column stable sorting, and nested AND/OR filter builder supporting all 12 operators. |
 | **History & Bulk Ops** | Memory-efficient patch-based Undo/Redo stack, bulk editing of selected rows, bulk row deletion, and row addition. |
 | **Error Export** | Immediate export of invalid rows and error diagnostics to CSV or XLSX format. |
-| **Theme System** | Native CSS custom properties (`--di-*`) allowing custom color schemes and complete component overrides. |
+| **Theme System & Headless** | Native CSS custom properties (`--di-*`), component slot overrides, step render props, context provider, and complete headless hook. |
 
 ---
 
@@ -57,7 +59,7 @@ yarn add data-importer
 
 ## ⚡ Quick Start
 
-### 1. React Application
+### 1. React Application (Default Turnkey UI)
 
 ```tsx
 import React, { useState } from 'react';
@@ -191,6 +193,9 @@ function MyCustomImporter() {
     setMapping,
     confirmMappingAndPrepare,
     updateCell,
+    undo,
+    redo,
+    setStep,
     import: runImport,
     reset
   } = useDataImporter({
@@ -219,6 +224,7 @@ function MyCustomImporter() {
               </tr>
             ))}
           </table>
+          <button onClick={() => setStep('mapping')}>← Back to Mapping</button>
           <button onClick={() => runImport()}>Submit Records</button>
         </div>
       )}
@@ -236,9 +242,12 @@ Pass a function as `children` to `<DataImporter>`:
 import { DataImporter } from 'data-importer/react';
 
 <DataImporter schema={schema} onImport={handleImport}>
-  {({ state, loadFile, import: runImport }) => (
+  {({ state, loadFile, setStep, import: runImport }) => (
     <div>
       {/* Build your own custom UI right here */}
+      {state.currentStep === 'review' && (
+        <button onClick={() => setStep('mapping')}>← Back to Mapping</button>
+      )}
       <button onClick={() => runImport()}>Import Now</button>
     </div>
   )}
@@ -254,11 +263,14 @@ For deeply nested custom components without prop drilling:
 import { DataImporterProvider, useDataImporterContext } from 'data-importer/react';
 
 function CustomSubmitButton() {
-  const { state, import: runImport } = useDataImporterContext();
+  const { state, setStep, import: runImport } = useDataImporterContext();
   return (
-    <button disabled={state.isLoading} onClick={() => runImport()}>
-      {state.isLoading ? 'Importing...' : 'Save All Records'}
-    </button>
+    <div>
+      <button onClick={() => setStep('mapping')}>← Back</button>
+      <button disabled={state.isLoading} onClick={() => runImport()}>
+        {state.isLoading ? 'Importing...' : 'Save All Records'}
+      </button>
+    </div>
   );
 }
 
@@ -287,9 +299,10 @@ Keep the default UI for all steps except the ones you want to customize:
       <input type="file" onChange={(e) => e.target.files?.[0] && loadFile(e.target.files[0])} />
     </div>
   )}
-  renderFooter={({ state, import: runImport }) => (
+  renderFooter={({ state, setStep, import: runImport }) => (
     <div className="my-custom-footer">
       <span>Rows to upload: {state.rows.length}</span>
+      <button onClick={() => setStep('mapping')}>← Back to Mapping</button>
       <button onClick={() => runImport()}>Confirm & Finish</button>
     </div>
   )}
@@ -315,6 +328,14 @@ Replace individual subcomponents with your own React components:
   }}
 />
 ```
+
+---
+
+## 🔄 Bidirectional Step Navigation & High-Column Handling
+
+- **Vertical Scrolling & Sticky Headers**: When a spreadsheet with 20, 50, or 100+ columns is loaded, the Column Mapping view features internal vertical scrolling with sticky column headers (`th`). The header remains visible at all times, and the bottom action bar stays fixed in place.
+- **Back to Column Mapping from Review**: Reviewing rows and noticed a mapping mistake? Click `← Back to Column Mapping` in the footer or click "Map Columns" in the stepper header to instantly return and adjust your mappings.
+- **Back from Mapping to File Selection**: Return to workbook sheet selection or file upload at any time using the `← Back` button in the Column Mapping footer.
 
 ---
 
