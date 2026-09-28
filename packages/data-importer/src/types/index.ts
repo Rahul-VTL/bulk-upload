@@ -322,15 +322,55 @@ export interface ThemeConfig {
 }
 
 export interface ComponentOverrides {
-  Header?: React.ComponentType<{ state: ImporterState; onReset: () => void }>;
-  UploadZone?: React.ComponentType<{ onFileSelect: (file: File) => void; error?: string }>;
+  Header?: React.ComponentType<{ state: ImporterState; onReset: () => void; onStepClick?: (step: StepState) => void }>;
+  UploadZone?: React.ComponentType<{
+    onFileSelect: (file: File) => void;
+    error?: string;
+    acceptedFiles?: ('csv' | 'tsv' | 'xls' | 'xlsx' | string)[];
+    maxFileSize?: number;
+    isLoading?: boolean;
+    loadingMessage?: string | null;
+  }>;
+  SheetSelector?: React.ComponentType<{
+    sheets: SheetInfo[];
+    selectedSheetId: string | null;
+    isLoading?: boolean;
+    onSelectSheet: (sheetId: string) => void;
+  }>;
   MappingPanel?: React.ComponentType<{
     mappings: ColumnMapping[];
     schema: ImporterSchema;
+    isLoading?: boolean;
     onUpdateMapping: (source: string, target: string | null) => void;
     onAutoMap: () => void;
+    onConfirm?: () => void;
+    onBack?: () => void;
   }>;
   Grid?: React.ComponentType<any>;
+  Footer?: React.ComponentType<{
+    state: ImporterState;
+    allowImportWithErrors?: boolean;
+    onImport: () => void;
+    onBack?: () => void;
+  }>;
+  Summary?: React.ComponentType<{
+    statistics: ImportStatistics;
+    progress: ImportProgress | null;
+    isLoading: boolean;
+    allowImportWithErrors?: boolean;
+    allowImportWithWarnings?: boolean;
+    onProceed: () => void;
+    onBack: () => void;
+  }>;
+  ImportSummary?: React.ComponentType<{
+    statistics: ImportStatistics;
+    progress: ImportProgress | null;
+    isLoading: boolean;
+    allowImportWithErrors?: boolean;
+    allowImportWithWarnings?: boolean;
+    onProceed: () => void;
+    onBack: () => void;
+  }>;
   ErrorPanel?: React.ComponentType<{
     errors: Record<string, ValidationError[]>;
     onSelectCell: (rowId: string, field: string) => void;
@@ -338,5 +378,6 @@ export interface ComponentOverrides {
   ResultView?: React.ComponentType<{
     result: ImportResult;
     onReset: () => void;
+    onClose?: () => void;
   }>;
 }

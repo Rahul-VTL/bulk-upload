@@ -8,6 +8,7 @@ export interface MappingPanelProps {
   onUpdateMapping: (source: string, target: string | null) => void;
   onAutoMap: () => void;
   onConfirm: () => void;
+  onBack?: () => void;
   isLoading?: boolean;
 }
 
@@ -17,6 +18,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
   onUpdateMapping,
   onAutoMap,
   onConfirm,
+  onBack,
   isLoading = false
 }) => {
   // Check required fields
@@ -69,7 +71,7 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
         </div>
       )}
 
-      <div style={{ border: '1px solid var(--di-border)', borderRadius: 'var(--di-radius-md)', overflowX: 'auto', backgroundColor: 'var(--di-surface)' }}>
+      <div className="di-mapping-table-wrapper">
         <table className="di-mapping-table">
           <thead>
             <tr>
@@ -158,14 +160,27 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
         </table>
       </div>
 
-      <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+      <div className="di-mapping-footer">
+        {onBack ? (
+          <button
+            type="button"
+            className="di-btn di-btn-secondary"
+            onClick={onBack}
+            disabled={isLoading}
+          >
+            ← Back
+          </button>
+        ) : (
+          <div />
+        )}
+
         <button
           type="button"
           className="di-btn di-btn-primary"
           onClick={onConfirm}
           disabled={isLoading || missingRequired.length > 0}
         >
-          {isLoading ? 'Preparing Data...' : 'Confirm Mapping & Review Data'}
+          {isLoading ? 'Preparing Data...' : 'Confirm Mapping & Review Data →'}
         </button>
       </div>
     </div>

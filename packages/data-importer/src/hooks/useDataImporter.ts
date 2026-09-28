@@ -50,6 +50,11 @@ export function useDataImporter(options: ImporterOptions) {
     exportErrors: (format: 'csv' | 'xlsx') => importer.exportErrors(format),
     validate: () => importer.validate(),
     import: () => importer.import(),
-    reset: () => importer.reset()
+    reset: () => importer.reset(),
+    setStep: (step: import('../types').StepState) => importer.setStep(step),
+    getDisplayRows: () => importer.getDisplayRows(),
+    setActiveCell: (cell: import('../types').GridCellPosition | null) => importer.setActiveCell(cell)
   };
 }
+
+export type UseDataImporterReturn = ReturnType<typeof useDataImporter>;

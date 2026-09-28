@@ -11,7 +11,8 @@ import {
   GridCellPosition,
   GridCellRange,
   ImportResult,
-  ImportProgress
+  ImportProgress,
+  StepState
 } from '../../types';
 import { EventEmitter } from '../events/event-emitter';
 import { FileValidator } from '../../parser/file-validator';
@@ -874,6 +875,10 @@ export class DataImporterCore {
       format,
       count: Object.keys(this.state.errors).length
     });
+  }
+
+  public setStep(step: StepState): void {
+    this.updateState({ currentStep: step });
   }
 
   public reset(): void {

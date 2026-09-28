@@ -1,123 +1,136 @@
 import React, { useState } from 'react';
-import { DataImporter } from 'data-importer/react';
-
-// Example schema for your project
-const schema = [
-  { key: 'name', label: 'Full Name', type: 'string', required: true, aliases: ['name', 'full_name', 'client'] },
-  { key: 'email', label: 'Email Address', type: 'email', required: true, unique: true, aliases: ['email', 'e-mail', 'mail'] },
-  { key: 'phone', label: 'Phone Number', type: 'phone', aliases: ['phone', 'mobile', 'contact'] },
-  { key: 'role', label: 'Role', type: 'enum', options: [{ label: 'Admin', value: 'Admin' }, { label: 'Member', value: 'Member' }] }
-];
+import { useDataImporter, DataImporter, ImportProgress, ImportResult } from 'data-importer/react';
+import './custom-ui/custom-styles.css';
+import { PRESETS, PresetConfig } from './presets';
+import { CustomHeader } from './custom-ui/CustomHeader';
+import { CustomUploadStep } from './custom-ui/CustomUploadStep';
+import { CustomSheetStep } from './custom-ui/CustomSheetStep';
+import { CustomMappingStep } from './custom-ui/CustomMappingStep';
+import { CustomReviewStep } from './custom-ui/CustomReviewStep';
+import { CustomImportingStep } from './custom-ui/CustomImportingStep';
+import { CustomResultStep } from './custom-ui/CustomResultStep';
 
 export const App: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<PresetConfig>(PRESETS[0]);
+  const [isCustomUIMode, setIsCustomUIMode] = useState<boolean>(true);
 
-  // Theme coming from your project (simply set your project's brand color here)
-  const projectTheme = {
-    primary: '#2563eb', // Change this to your project's primary color
-    primaryHover: '#1d4ed8'
+  // Simulated backend API import handler
+  const handleImport = async (
+    rows: Record<string, unknown>[],
+    onProgress: (p: ImportProgress) => void
+  ): Promise<ImportResult> => {
+    const startTime = performance.now();
+    console.log(`[API Import] Sending ${rows.length} records to backend:`, rows);
+
+    // Simulate batch progress
+    const total = rows.length;
+    for (let i = 1; i <= total; i++) {
+      await new Promise((r) => setTimeout(r, Math.max(15, Math.floor(400 / total))));
+      onProgress({
+        processed: i,
+        total,
+        percentage: Math.round((i / total) * 100),
+        successCount: i,
+        failureCount: 0
+      });
+    }
+
+    const duration = Math.round(performance.now() - startTime);
+
+    return {
+      totalRows: total,
+      validRows: total,
+      invalidRows: 0,
+      warningRows: 0,
+      importedRows: total,
+      failedRows: 0,
+      duration,
+      errors: []
+    };
   };
 
-  const handleImport = async (rows: Record<string, unknown>[]) => {
-    console.log('Sending data to project backend API:', rows);
-    // Simulate backend API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    alert(`Successfully imported ${rows.length} records!`);
-  };
+  // 100% Headless hook powering the custom UI
+  const customImporterApi = useDataImporter({
+    schema: selectedPreset.schema,
+    onImport: handleImport
+  });
+
+  const { currentStep } = customImporterApi.state;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', fontFamily: 'sans-serif' }}>
-      
-      {/* 1. Aapke project me jaha bhi button chahiye waha ye button hoga */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        style={{
-          padding: '12px 24px',
-          fontSize: '15px',
-          fontWeight: 600,
-          borderRadius: '8px',
-          border: 'none',
-          backgroundColor: projectTheme.primary,
-          color: '#ffffff',
-          cursor: 'pointer',
-          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
-        }}
-      >
-        Import Data
-      </button>
+    <div className="custom-ui-app">
+      {/* Universal Header with Preset Switcher & Mode Switcher */}
+      <CustomHeader
+        api={customImporterApi}
+        selectedPreset={selectedPreset}
+        onSelectPreset={setSelectedPreset}
+        isCustomUIMode={isCustomUIMode}
+        onToggleCustomUIMode={setIsCustomUIMode}
+      />
 
-      {/* 2. Button click par aapka modal open hoga aur uske andar DataImporter render hoga */}
-      {isOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '16px'
-          }}
-          onClick={() => setIsOpen(false)}
-        >
-          {/* Modal Container */}
+      <main className="c-main-layout">
+        {isCustomUIMode ? (
+          /* ============================================================ */
+          /* ⚡ 100% COMPLETELY CUSTOM UI (Every Step Built from Scratch) */
+          /* ============================================================ */
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {currentStep === 'upload' && (
+              <CustomUploadStep
+                api={customImporterApi}
+                preset={selectedPreset}
+              />
+            )}
+
+            {currentStep === 'sheet-select' && (
+              <CustomSheetStep api={customImporterApi} />
+            )}
+
+            {currentStep === 'mapping' && (
+              <CustomMappingStep
+                api={customImporterApi}
+                preset={selectedPreset}
+              />
+            )}
+
+            {currentStep === 'review' && (
+              <CustomReviewStep
+                api={customImporterApi}
+                preset={selectedPreset}
+              />
+            )}
+
+            {currentStep === 'importing' && (
+              <CustomImportingStep api={customImporterApi} />
+            )}
+
+            {currentStep === 'result' && (
+              <CustomResultStep api={customImporterApi} />
+            )}
+          </div>
+        ) : (
+          /* ============================================================ */
+          /* 📦 DEFAULT PACKAGE UI (Comparison View)                      */
+          /* ============================================================ */
           <div
             style={{
-              width: '90vw',
-              maxWidth: '1100px',
-              height: '85vh',
-              backgroundColor: '#ffffff',
-              borderRadius: '12px',
-              display: 'flex',
-              flexDirection: 'column',
+              flex: 1,
+              height: '75vh',
+              background: '#ffffff',
+              borderRadius: 12,
+              border: '1px solid var(--c-border)',
               overflow: 'hidden',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)'
+              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header with Close Button */}
-            <div
-              style={{
-                padding: '14px 20px',
-                borderBottom: '1px solid #e2e8f0',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                backgroundColor: '#ffffff'
-              }}
-            >
-              <span style={{ fontWeight: 600, fontSize: 16 }}>Import Data</span>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  fontSize: '18px',
-                  cursor: 'pointer',
-                  color: '#64748b',
-                  lineHeight: 1
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Simple Generic DataImporter Component */}
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <DataImporter
-                theme={projectTheme}
-                schema={schema}
-                onImport={handleImport}
-                onComplete={() => setIsOpen(false)}
-                onCancel={() => setIsOpen(false)}
-              />
-            </div>
+            <DataImporter
+              key={selectedPreset.id}
+              schema={selectedPreset.schema}
+              onImport={handleImport}
+              onCancel={customImporterApi.reset}
+            />
           </div>
-        </div>
-      )}
+        )}
+      </main>
     </div>
   );
 };

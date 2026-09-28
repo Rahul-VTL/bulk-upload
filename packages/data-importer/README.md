@@ -159,6 +159,165 @@ console.log(result);
 
 ---
 
+## 🎨 UI Options: Default UI vs Custom UI
+
+Data Importer is designed with maximum flexibility: you can use the **Default UI out-of-the-box**, or replace parts of it, or build a **100% custom UI** with complete control over design, CSS, and layout.
+
+### Option 1: Default UI (Out of the box)
+Zero configuration needed. It gives you an enterprise spreadsheet, wizard stepper, mapping panel, and validation review:
+
+```tsx
+import { DataImporter } from 'data-importer/react';
+import 'data-importer/styles.css';
+
+<DataImporter
+  schema={schema}
+  onImport={handleImport}
+/>
+```
+
+---
+
+### Option 2: 100% Custom UI via Headless Hook (`useDataImporter`)
+If you want to design your own custom screens (using Tailwind, MUI, Shadcn UI, AntD, etc.), use the headless React hook. You get full control over the DOM, while the hook manages all state, parsing, mapping, validation, duplicate detection, and undo/redo:
+
+```tsx
+import { useDataImporter } from 'data-importer/react';
+
+function MyCustomImporter() {
+  const {
+    state,
+    loadFile,
+    setMapping,
+    confirmMappingAndPrepare,
+    updateCell,
+    import: runImport,
+    reset
+  } = useDataImporter({
+    schema,
+    onImport: handleImport
+  });
+
+  return (
+    <div className="my-custom-container">
+      {state.currentStep === 'upload' && (
+        <input
+          type="file"
+          accept=".csv,.xlsx"
+          onChange={(e) => e.target.files?.[0] && loadFile(e.target.files[0])}
+        />
+      )}
+
+      {state.currentStep === 'review' && (
+        <div>
+          <h2>Review Data ({state.rows.length} rows)</h2>
+          <table>
+            {state.rows.map((row, idx) => (
+              <tr key={state.rowIds[idx]}>
+                <td>{String(row.name)}</td>
+                <td>{String(row.email)}</td>
+              </tr>
+            ))}
+          </table>
+          <button onClick={() => runImport()}>Submit Records</button>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+### Option 3: Custom UI via Render Prop (`children` as a function)
+Pass a function as `children` to `<DataImporter>`:
+
+```tsx
+import { DataImporter } from 'data-importer/react';
+
+<DataImporter schema={schema} onImport={handleImport}>
+  {({ state, loadFile, import: runImport }) => (
+    <div>
+      {/* Build your own custom UI right here */}
+      <button onClick={() => runImport()}>Import Now</button>
+    </div>
+  )}
+</DataImporter>
+```
+
+---
+
+### Option 4: Custom UI via Context (`DataImporterProvider` & `useDataImporterContext`)
+For deeply nested custom components without prop drilling:
+
+```tsx
+import { DataImporterProvider, useDataImporterContext } from 'data-importer/react';
+
+function CustomSubmitButton() {
+  const { state, import: runImport } = useDataImporterContext();
+  return (
+    <button disabled={state.isLoading} onClick={() => runImport()}>
+      {state.isLoading ? 'Importing...' : 'Save All Records'}
+    </button>
+  );
+}
+
+export function App() {
+  return (
+    <DataImporterProvider schema={schema} onImport={handleImport}>
+      <MyCustomHeader />
+      <MyCustomBody />
+      <CustomSubmitButton />
+    </DataImporterProvider>
+  );
+}
+```
+
+---
+
+### Option 5: Step Render Props (`renderUpload`, `renderReview`, etc.)
+Keep the default UI for all steps except the ones you want to customize:
+
+```tsx
+<DataImporter
+  schema={schema}
+  onImport={handleImport}
+  renderUpload={({ loadFile, state }) => (
+    <div className="my-fancy-drag-and-drop">
+      <input type="file" onChange={(e) => e.target.files?.[0] && loadFile(e.target.files[0])} />
+    </div>
+  )}
+  renderFooter={({ state, import: runImport }) => (
+    <div className="my-custom-footer">
+      <span>Rows to upload: {state.rows.length}</span>
+      <button onClick={() => runImport()}>Confirm & Finish</button>
+    </div>
+  )}
+/>
+```
+
+---
+
+### Option 6: Component Slot Overrides (`components={{ ... }}`)
+Replace individual subcomponents with your own React components:
+
+```tsx
+<DataImporter
+  schema={schema}
+  onImport={handleImport}
+  components={{
+    Header: MyCustomHeader,
+    UploadZone: MyCustomUploadZone,
+    SheetSelector: MyCustomSheetSelector,
+    MappingPanel: MyCustomMappingPanel,
+    Grid: MyCustomGrid,
+    Footer: MyCustomFooter
+  }}
+/>
+```
+
+---
+
 ## 📄 License
 
 MIT

@@ -5,6 +5,7 @@ import { IconCheck } from './Icons';
 export interface HeaderProps {
   state: ImporterState;
   onReset: () => void;
+  onStepClick?: (step: StepState) => void;
 }
 
 const STEP_ORDER: { step: StepState; label: string }[] = [
@@ -16,7 +17,7 @@ const STEP_ORDER: { step: StepState; label: string }[] = [
   { step: 'result', label: 'Complete' }
 ];
 
-export const Header: React.FC<HeaderProps> = ({ state, onReset }) => {
+export const Header: React.FC<HeaderProps> = ({ state, onReset, onStepClick }) => {
   const currentStep = state.currentStep;
   const isMultiSheet = state.sheets.length > 1;
 
@@ -33,14 +34,26 @@ export const Header: React.FC<HeaderProps> = ({ state, onReset }) => {
         {visibleSteps.map((s, idx) => {
           const isCompleted = idx < currentIndex;
           const isActive = s.step === currentStep;
+          const canClick =
+            !!onStepClick &&
+            isCompleted &&
+            currentStep !== 'importing' &&
+            currentStep !== 'result';
 
           return (
             <React.Fragment key={s.step}>
               <div
                 className={`di-step-item ${isActive ? 'active' : ''} ${
                   isCompleted ? 'completed' : ''
-                }`}
+                } ${canClick ? 'clickable' : ''}`}
                 aria-current={isActive ? 'step' : undefined}
+                onClick={() => {
+                  if (canClick) {
+                    onStepClick(s.step);
+                  }
+                }}
+                style={{ cursor: canClick ? 'pointer' : 'default' }}
+                title={canClick ? `Go back to ${s.label}` : undefined}
               >
                 <div className="di-step-circle">
                   {isCompleted ? <IconCheck size={14} /> : idx + 1}

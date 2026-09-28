@@ -6,6 +6,7 @@ import './theme/theme.css';
 
 export * from './types';
 export * from './hooks/useDataImporter';
+export * from './context/DataImporterContext';
 export * from './components/DataImporter';
 export * from './components/DataImporterModal';
 export * from './components/common/Header';

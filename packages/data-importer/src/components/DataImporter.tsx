@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import {
-  ImporterOptions,
   ImporterSchema,
   ThemeConfig,
   ComponentOverrides,
@@ -8,7 +7,8 @@ import {
   ImportRowResult,
   ImportProgress
 } from '../types';
-import { useDataImporter } from '../hooks/useDataImporter';
+import { useDataImporter, UseDataImporterReturn } from '../hooks/useDataImporter';
+import { DataImporterContext } from '../context/DataImporterContext';
 import { Header } from './common/Header';
 import { UploadZone } from './upload/UploadZone';
 import { SheetSelector } from './sheets/SheetSelector';
@@ -35,6 +35,17 @@ export interface DataImporterProps {
   initialFile?: File | null;
   className?: string;
   style?: React.CSSProperties;
+
+  // Custom UI slots & render props:
+  children?: React.ReactNode | ((api: UseDataImporterReturn) => React.ReactNode);
+  renderHeader?: (api: UseDataImporterReturn) => React.ReactNode;
+  renderUpload?: (api: UseDataImporterReturn) => React.ReactNode;
+  renderSheetSelect?: (api: UseDataImporterReturn) => React.ReactNode;
+  renderMapping?: (api: UseDataImporterReturn) => React.ReactNode;
+  renderReview?: (api: UseDataImporterReturn) => React.ReactNode;
+  renderFooter?: (api: UseDataImporterReturn) => React.ReactNode;
+  renderSummary?: (api: UseDataImporterReturn) => React.ReactNode;
+  renderResult?: (api: UseDataImporterReturn) => React.ReactNode;
 }
 
 export const DataImporter: React.FC<DataImporterProps> = ({
@@ -51,7 +62,16 @@ export const DataImporter: React.FC<DataImporterProps> = ({
   onCancel,
   initialFile,
   className = '',
-  style
+  style,
+  children,
+  renderHeader,
+  renderUpload,
+  renderSheetSelect,
+  renderMapping,
+  renderReview,
+  renderFooter,
+  renderSummary,
+  renderResult
 }) => {
   const importerApi = useDataImporter({
     schema,
@@ -101,135 +121,217 @@ export const DataImporter: React.FC<DataImporterProps> = ({
     return cssVars as React.CSSProperties;
   }, [theme]);
 
+  // If consumer supplied children, render headless / custom UI within context
+  if (children) {
+    return (
+      <DataImporterContext.Provider value={importerApi}>
+        <div
+          className={`di-container ${className}`}
+          style={{ ...themeStyles, ...style }}
+          data-testid="data-importer-container"
+        >
+          {typeof children === 'function' ? children(importerApi) : children}
+        </div>
+      </DataImporterContext.Provider>
+    );
+  }
+
   // Component Overrides
   const HeaderComponent = components.Header || Header;
   const UploadZoneComponent = components.UploadZone || UploadZone;
+  const SheetSelectorComponent = components.SheetSelector || SheetSelector;
   const MappingPanelComponent = components.MappingPanel || MappingPanel;
   const GridComponent = components.Grid || DataGrid;
+  const FooterComponent = components.Footer;
+  const SummaryComponent = components.Summary || components.ImportSummary || ImportSummary;
   const ResultViewComponent = components.ResultView || ResultView;
 
   return (
-    <div
-      className={`di-container ${className}`}
-      style={{ ...themeStyles, ...style }}
-      data-testid="data-importer-container"
-    >
-      <HeaderComponent state={state} onReset={importerApi.reset} />
-
-      <main className="di-content">
-        {state.currentStep === 'upload' && (
-          <UploadZoneComponent
-            acceptedFiles={acceptedFiles}
-            maxFileSize={maxFileSize}
-            isLoading={state.isLoading}
-            loadingMessage={state.loadingMessage}
-            onFileSelect={(file) => {
-              importerApi.loadFile(file).catch((err) => {
-                console.error('File load error:', err);
-              });
-            }}
-          />
-        )}
-
-        {state.currentStep === 'sheet-select' && (
-          <SheetSelector
-            sheets={state.sheets}
-            selectedSheetId={state.selectedSheetId}
-            isLoading={state.isLoading}
-            onSelectSheet={(sheetId) => {
-              importerApi.selectSheet(sheetId);
-            }}
-          />
-        )}
-
-        {state.currentStep === 'mapping' && (
-          <MappingPanelComponent
-            mappings={state.mappings}
-            schema={schema}
-            isLoading={state.isLoading}
-            onUpdateMapping={importerApi.setMapping}
-            onAutoMap={importerApi.autoMap}
-            onConfirm={importerApi.confirmMappingAndPrepare}
-          />
-        )}
-
-        {state.currentStep === 'review' && (
-          <>
-            <GridComponent
-              state={state}
-              schema={schema}
-              onUpdateCell={importerApi.updateCell}
-              onUpdateCells={importerApi.updateCells}
-              onAddRow={importerApi.addRow}
-              onDeleteRows={importerApi.deleteRows}
-              onDuplicateRow={importerApi.duplicateRow}
-              onUndo={importerApi.undo}
-              onRedo={importerApi.redo}
-              onSetFilter={importerApi.setFilter}
-              onSetSearch={importerApi.setSearch}
-              onSetSorting={importerApi.setSorting}
-              onToggleRowSelection={importerApi.toggleRowSelection}
-              onSelectAllRows={importerApi.selectAllRows}
-              onClearSelection={importerApi.clearSelection}
-              onExportErrors={importerApi.exportErrors}
-              onValidate={importerApi.validate}
-            />
-
-            <footer className="di-footer">
-              <div style={{ fontSize: 13, color: 'var(--di-text-secondary)' }}>
-                <span>Total records: <strong>{state.rows.length}</strong></span>
-                <span style={{ margin: '0 8px' }}>·</span>
-                <span>Valid: <strong style={{ color: 'var(--di-success)' }}>{state.statistics.valid}</strong></span>
-                {state.statistics.invalid > 0 && (
-                  <>
-                    <span style={{ margin: '0 8px' }}>·</span>
-                    <span>Errors: <strong style={{ color: 'var(--di-error)' }}>{state.statistics.invalid}</strong></span>
-                  </>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  type="button"
-                  className="di-btn di-btn-primary"
-                  onClick={() => {
-                    importerApi.import().catch((err) => {
-                      console.error('Import error:', err);
-                    });
-                  }}
-                  disabled={state.statistics.invalid > 0 && !allowImportWithErrors}
-                >
-                  Import {state.rows.length} Records
-                </button>
-              </div>
-            </footer>
-          </>
-        )}
-
-        {state.currentStep === 'importing' && (
-          <ImportSummary
-            statistics={state.statistics}
-            progress={state.progress}
-            isLoading={state.isLoading}
-            allowImportWithErrors={allowImportWithErrors}
-            allowImportWithWarnings={allowImportWithWarnings}
-            onProceed={() => {
-              importerApi.import();
-            }}
-            onBack={() => {
-              // Return to grid
-            }}
-          />
-        )}
-
-        {state.currentStep === 'result' && state.result && (
-          <ResultViewComponent
-            result={state.result}
+    <DataImporterContext.Provider value={importerApi}>
+      <div
+        className={`di-container ${className}`}
+        style={{ ...themeStyles, ...style }}
+        data-testid="data-importer-container"
+      >
+        {renderHeader ? (
+          renderHeader(importerApi)
+        ) : (
+          <HeaderComponent
+            state={state}
             onReset={importerApi.reset}
-            onClose={onCancel}
+            onStepClick={importerApi.setStep}
           />
         )}
-      </main>
-    </div>
+
+        <main className="di-content">
+          {state.currentStep === 'upload' && (
+            renderUpload ? (
+              renderUpload(importerApi)
+            ) : (
+              <UploadZoneComponent
+                acceptedFiles={acceptedFiles}
+                maxFileSize={maxFileSize}
+                isLoading={state.isLoading}
+                loadingMessage={state.loadingMessage}
+                onFileSelect={(file) => {
+                  importerApi.loadFile(file).catch((err) => {
+                    console.error('File load error:', err);
+                  });
+                }}
+              />
+            )
+          )}
+
+          {state.currentStep === 'sheet-select' && (
+            renderSheetSelect ? (
+              renderSheetSelect(importerApi)
+            ) : (
+              <SheetSelectorComponent
+                sheets={state.sheets}
+                selectedSheetId={state.selectedSheetId}
+                isLoading={state.isLoading}
+                onSelectSheet={(sheetId) => {
+                  importerApi.selectSheet(sheetId);
+                }}
+              />
+            )
+          )}
+
+          {state.currentStep === 'mapping' && (
+            renderMapping ? (
+              renderMapping(importerApi)
+            ) : (
+              <MappingPanelComponent
+                mappings={state.mappings}
+                schema={schema}
+                isLoading={state.isLoading}
+                onUpdateMapping={importerApi.setMapping}
+                onAutoMap={importerApi.autoMap}
+                onConfirm={importerApi.confirmMappingAndPrepare}
+                onBack={() => {
+                  if (state.sheets.length > 1) {
+                    importerApi.setStep('sheet-select');
+                  } else {
+                    importerApi.setStep('upload');
+                  }
+                }}
+              />
+            )
+          )}
+
+          {state.currentStep === 'review' && (
+            renderReview ? (
+              renderReview(importerApi)
+            ) : (
+              <>
+                <GridComponent
+                  state={state}
+                  schema={schema}
+                  onUpdateCell={importerApi.updateCell}
+                  onUpdateCells={importerApi.updateCells}
+                  onAddRow={importerApi.addRow}
+                  onDeleteRows={importerApi.deleteRows}
+                  onDuplicateRow={importerApi.duplicateRow}
+                  onUndo={importerApi.undo}
+                  onRedo={importerApi.redo}
+                  onSetFilter={importerApi.setFilter}
+                  onSetSearch={importerApi.setSearch}
+                  onSetSorting={importerApi.setSorting}
+                  onToggleRowSelection={importerApi.toggleRowSelection}
+                  onSelectAllRows={importerApi.selectAllRows}
+                  onClearSelection={importerApi.clearSelection}
+                  onExportErrors={importerApi.exportErrors}
+                  onValidate={importerApi.validate}
+                />
+
+                {renderFooter ? (
+                  renderFooter(importerApi)
+                ) : FooterComponent ? (
+                  <FooterComponent
+                    state={state}
+                    allowImportWithErrors={allowImportWithErrors}
+                    onImport={() => {
+                      importerApi.import().catch((err) => {
+                        console.error('Import error:', err);
+                      });
+                    }}
+                    onBack={() => importerApi.setStep('mapping')}
+                  />
+                ) : (
+                  <footer className="di-footer">
+                    <div style={{ fontSize: 13, color: 'var(--di-text-secondary)' }}>
+                      <span>Total records: <strong>{state.rows.length}</strong></span>
+                      <span style={{ margin: '0 8px' }}>·</span>
+                      <span>Valid: <strong style={{ color: 'var(--di-success)' }}>{state.statistics.valid}</strong></span>
+                      {state.statistics.invalid > 0 && (
+                        <>
+                          <span style={{ margin: '0 8px' }}>·</span>
+                          <span>Errors: <strong style={{ color: 'var(--di-error)' }}>{state.statistics.invalid}</strong></span>
+                        </>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        type="button"
+                        className="di-btn di-btn-secondary"
+                        onClick={() => importerApi.setStep('mapping')}
+                        title="Back to column mapping"
+                      >
+                        ← Back to Column Mapping
+                      </button>
+                      <button
+                        type="button"
+                        className="di-btn di-btn-primary"
+                        onClick={() => {
+                          importerApi.import().catch((err) => {
+                            console.error('Import error:', err);
+                          });
+                        }}
+                        disabled={state.statistics.invalid > 0 && !allowImportWithErrors}
+                      >
+                        Import {state.rows.length} Records
+                      </button>
+                    </div>
+                  </footer>
+                )}
+              </>
+            )
+          )}
+
+          {state.currentStep === 'importing' && (
+            renderSummary ? (
+              renderSummary(importerApi)
+            ) : (
+              <SummaryComponent
+                statistics={state.statistics}
+                progress={state.progress}
+                isLoading={state.isLoading}
+                allowImportWithErrors={allowImportWithErrors}
+                allowImportWithWarnings={allowImportWithWarnings}
+                onProceed={() => {
+                  importerApi.import();
+                }}
+                onBack={() => {
+                  importerApi.setStep('review');
+                }}
+              />
+            )
+          )}
+
+          {state.currentStep === 'result' && state.result && (
+            renderResult ? (
+              renderResult(importerApi)
+            ) : (
+              <ResultViewComponent
+                result={state.result}
+                onReset={importerApi.reset}
+                onClose={onCancel}
+              />
+            )
+          )}
+        </main>
+      </div>
+    </DataImporterContext.Provider>
   );
 };
