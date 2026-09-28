@@ -2,12 +2,14 @@ import React from 'react';
 import { PRESETS, PresetConfig } from '../presets';
 import { UseDataImporterReturn } from 'data-importer/react';
 
+export type PlaygroundMode = 'custom' | 'default' | 'shimmer';
+
 interface CustomHeaderProps {
   api: UseDataImporterReturn;
   selectedPreset: PresetConfig;
   onSelectPreset: (preset: PresetConfig) => void;
-  isCustomUIMode: boolean;
-  onToggleCustomUIMode: (val: boolean) => void;
+  activeMode: PlaygroundMode;
+  onSelectMode: (mode: PlaygroundMode) => void;
 }
 
 const STEPS = [
@@ -23,8 +25,8 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
   api,
   selectedPreset,
   onSelectPreset,
-  isCustomUIMode,
-  onToggleCustomUIMode
+  activeMode,
+  onSelectMode
 }) => {
   const currentStep = api.state.currentStep;
 
@@ -94,7 +96,7 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
           >
             <button
               type="button"
-              onClick={() => onToggleCustomUIMode(true)}
+              onClick={() => onSelectMode('custom')}
               style={{
                 padding: '5px 12px',
                 borderRadius: 6,
@@ -102,9 +104,9 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
                 fontWeight: 600,
                 border: 'none',
                 cursor: 'pointer',
-                background: isCustomUIMode ? '#ffffff' : 'transparent',
-                color: isCustomUIMode ? 'var(--c-primary)' : 'var(--c-text-muted)',
-                boxShadow: isCustomUIMode ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                background: activeMode === 'custom' ? '#ffffff' : 'transparent',
+                color: activeMode === 'custom' ? 'var(--c-primary)' : 'var(--c-text-muted)',
+                boxShadow: activeMode === 'custom' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
@@ -112,7 +114,7 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => onToggleCustomUIMode(false)}
+              onClick={() => onSelectMode('default')}
               style={{
                 padding: '5px 12px',
                 borderRadius: 6,
@@ -120,13 +122,31 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
                 fontWeight: 600,
                 border: 'none',
                 cursor: 'pointer',
-                background: !isCustomUIMode ? '#ffffff' : 'transparent',
-                color: !isCustomUIMode ? 'var(--c-primary)' : 'var(--c-text-muted)',
-                boxShadow: !isCustomUIMode ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                background: activeMode === 'default' ? '#ffffff' : 'transparent',
+                color: activeMode === 'default' ? 'var(--c-primary)' : 'var(--c-text-muted)',
+                boxShadow: activeMode === 'default' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
-              📦 Default UI
+              📦 Default UI (Full Viewport)
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectMode('shimmer')}
+              style={{
+                padding: '5px 12px',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                background: activeMode === 'shimmer' ? '#ffffff' : 'transparent',
+                color: activeMode === 'shimmer' ? 'var(--c-primary)' : 'var(--c-text-muted)',
+                boxShadow: activeMode === 'shimmer' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              ✨ AutoShimmer System
             </button>
           </div>
 
@@ -144,7 +164,7 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
       </div>
 
       {/* Stepper Bar (visible in custom UI mode) */}
-      {isCustomUIMode && (
+      {activeMode === 'custom' && (
         <div className="c-stepper-container">
           <div className="c-stepper">
             {STEPS.map((step, idx) => {

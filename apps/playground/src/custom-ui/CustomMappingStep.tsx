@@ -45,6 +45,27 @@ export const CustomMappingStep: React.FC<CustomMappingStepProps> = ({ api, prese
         </button>
       </div>
 
+      {/* Mandatory columns info banner */}
+      <div
+        style={{
+          padding: '12px 16px',
+          background: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: 8,
+          marginBottom: 16,
+          fontSize: 13,
+          color: '#1e40af',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10
+        }}
+      >
+        <span style={{ fontSize: 16 }}>ℹ️</span>
+        <div>
+          <strong>Note:</strong> Target columns marked with an asterisk (<strong style={{ color: '#ef4444', fontSize: 15 }}>*</strong>) are <strong>mandatory</strong> and must be mapped to proceed.
+        </div>
+      </div>
+
       {/* Validation banner if required fields are missing */}
       {missingRequired.length > 0 && (
         <div
@@ -139,7 +160,7 @@ export const CustomMappingStep: React.FC<CustomMappingStepProps> = ({ api, prese
                   <option value="">(Ignore this column)</option>
                   {schema.map((col) => (
                     <option key={col.key} value={col.key}>
-                      {col.label} {col.required ? '*' : ''} ({col.type})
+                      {col.label} {col.required ? '* [Mandatory]' : ''} ({col.type})
                     </option>
                   ))}
                 </select>
@@ -154,12 +175,13 @@ export const CustomMappingStep: React.FC<CustomMappingStepProps> = ({ api, prese
                         fontSize: 11,
                         padding: '3px 8px',
                         borderRadius: 6,
-                        background: matchedTarget.required ? '#fef3c7' : '#f1f5f9',
-                        color: matchedTarget.required ? '#b45309' : '#475569',
+                        background: matchedTarget.required ? '#fef2f2' : '#f1f5f9',
+                        color: matchedTarget.required ? '#ef4444' : '#475569',
+                        border: matchedTarget.required ? '1px solid rgba(239, 68, 68, 0.25)' : 'none',
                         fontWeight: 600
                       }}
                     >
-                      {matchedTarget.required ? 'Required' : 'Optional'}
+                      {matchedTarget.required ? '* Mandatory' : 'Optional'}
                     </span>
                   </div>
                 ) : (

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ColumnMapping, ImporterSchema } from '../../types';
-import { IconCheck, IconAlertCircle, IconAlertTriangle } from '../common/Icons';
+import { IconCheck, IconAlertCircle, IconAlertTriangle, IconInfo } from '../common/Icons';
 
 export interface MappingPanelProps {
   mappings: ColumnMapping[];
@@ -49,10 +49,34 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
         </div>
       </div>
 
+      {/* Mandatory columns info banner */}
+      <div
+        className="di-mapping-info-note"
+        style={{
+          marginBottom: 14,
+          padding: '10px 16px',
+          backgroundColor: '#eff6ff',
+          color: '#1e40af',
+          borderRadius: 'var(--di-radius-md)',
+          border: '1px solid #bfdbfe',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          fontSize: 13,
+          fontWeight: 500,
+          flexShrink: 0
+        }}
+      >
+        <IconInfo size={18} />
+        <span>
+          <strong>Note:</strong> Target fields marked with an asterisk (<strong style={{ color: 'var(--di-error)', fontSize: 15 }}>*</strong>) are <strong>mandatory</strong>. All mandatory fields must be mapped to proceed with the import.
+        </span>
+      </div>
+
       {missingRequired.length > 0 && (
         <div
           style={{
-            marginBottom: 16,
+            marginBottom: 14,
             padding: '10px 16px',
             backgroundColor: 'var(--di-warning-light)',
             color: '#92400e',
@@ -61,12 +85,19 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            fontSize: 13
+            fontSize: 13,
+            flexShrink: 0
           }}
         >
           <IconAlertTriangle size={18} />
           <span>
-            <strong>Required fields unmapped:</strong> {missingRequired.map((f) => f.label).join(', ')}. Please assign these columns before continuing.
+            <strong>Mandatory fields unmapped:</strong>{' '}
+            {missingRequired.map((f) => (
+              <span key={f.key} style={{ fontWeight: 600, color: 'var(--di-error)', marginRight: 6 }}>
+                {f.label} *
+              </span>
+            ))}
+            . Please assign these columns before continuing.
           </span>
         </div>
       )}
@@ -76,9 +107,11 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
           <thead>
             <tr>
               <th style={{ width: '25%' }}>Source Column</th>
-              <th style={{ width: '30%' }}>Target Field</th>
-              <th style={{ width: '15%' }}>Confidence</th>
-              <th style={{ width: '15%' }}>Strategy</th>
+              <th style={{ width: '35%' }}>
+                Target Field (<span style={{ color: 'var(--di-error)' }}>*</span> = Mandatory)
+              </th>
+              <th style={{ width: '13%' }}>Confidence</th>
+              <th style={{ width: '12%' }}>Strategy</th>
               <th style={{ width: '15%' }}>Sample Values</th>
             </tr>
           </thead>
@@ -99,22 +132,43 @@ export const MappingPanel: React.FC<MappingPanelProps> = ({
                     {mapping.sourceColumn}
                   </td>
                   <td>
-                    <select
-                      className="di-mapping-select"
-                      value={mapping.targetField || ''}
-                      onChange={(e) => {
-                        const val = e.target.value === '' ? null : e.target.value;
-                        onUpdateMapping(mapping.sourceColumn, val);
-                      }}
-                      aria-label={`Map ${mapping.sourceColumn}`}
-                    >
-                      <option value="">(Ignore / Do not import)</option>
-                      {schema.map((col) => (
-                        <option key={col.key} value={col.key}>
-                          {col.label} {col.required ? '*' : ''} ({col.type})
-                        </option>
-                      ))}
-                    </select>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <select
+                        className="di-mapping-select"
+                        value={mapping.targetField || ''}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? null : e.target.value;
+                          onUpdateMapping(mapping.sourceColumn, val);
+                        }}
+                        aria-label={`Map ${mapping.sourceColumn}`}
+                      >
+                        <option value="">(Ignore / Do not import)</option>
+                        {schema.map((col) => (
+                          <option key={col.key} value={col.key}>
+                            {col.label} {col.required ? '* [Mandatory]' : ''} ({col.type})
+                          </option>
+                        ))}
+                      </select>
+                      {matchedCol?.required && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: 'var(--di-error)',
+                            backgroundColor: 'var(--di-error-light)',
+                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                            padding: '3px 8px',
+                            borderRadius: 'var(--di-radius-sm)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            whiteSpace: 'nowrap'
+                          }}
+                          title="This field is mandatory"
+                        >
+                          * Mandatory
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td>
                     {isMapped ? (

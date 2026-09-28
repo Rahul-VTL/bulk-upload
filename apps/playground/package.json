@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@rahul_kumar_sharma/data-importer": "workspace:*",
+    "@shimmer-from-structure/react": "^2.4.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@': path.resolve(__dirname, './src'),
       'data-importer/react': path.resolve(__dirname, '../../packages/data-importer/src/react.ts'),
       'data-importer': path.resolve(__dirname, '../../packages/data-importer/src/index.ts')
     }

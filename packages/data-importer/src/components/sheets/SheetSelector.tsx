@@ -22,7 +22,7 @@ export const SheetSelector: React.FC<SheetSelectorProps> = ({
   const selectedSheet = sheets.find((s) => s.id === currentId) || sheets[0];
 
   return (
-    <div style={{ flex: 1, padding: 32, overflowY: 'auto' }}>
+    <div className="di-sheet-container">
       <div style={{ maxWidth: 860, margin: '0 auto' }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8, color: 'var(--di-text)' }}>
           Select Worksheet
