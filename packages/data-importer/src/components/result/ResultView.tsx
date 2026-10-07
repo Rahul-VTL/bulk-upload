@@ -6,10 +6,31 @@ export interface ResultViewProps {
   result: ImportResult;
   onReset: () => void;
   onClose?: () => void;
+  onBackToListing?: () => void;
+  onDownloadInvalidRows?: (format?: 'csv' | 'xlsx') => void;
+  backToListingLabel?: string;
+  invalidCount?: number;
 }
 
-export const ResultView: React.FC<ResultViewProps> = ({ result, onReset, onClose }) => {
-  const isFullSuccess = result.failedRows === 0;
+export const ResultView: React.FC<ResultViewProps> = ({
+  result,
+  onReset,
+  onClose,
+  onBackToListing,
+  onDownloadInvalidRows,
+  backToListingLabel = 'Back to Listing',
+  invalidCount: propInvalidCount
+}) => {
+  const isFullSuccess = result.failedRows === 0 && (propInvalidCount === undefined || propInvalidCount === 0);
+  const hasFailedRows =
+    (propInvalidCount !== undefined && propInvalidCount > 0) ||
+    result.failedRows > 0 ||
+    result.invalidRows > 0 ||
+    Boolean(result.rowResults && result.rowResults.some((r) => !r.success));
+  const failedCount =
+    propInvalidCount !== undefined && propInvalidCount > 0
+      ? propInvalidCount
+      : (result.failedRows || result.invalidRows || 0);
 
   return (
     <div style={{ flex: 1, padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -84,14 +105,14 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset, onClose
             style={{
               padding: 12,
               borderRadius: 'var(--di-radius-md)',
-              backgroundColor: result.failedRows > 0 ? 'var(--di-error-light)' : 'var(--di-surface-secondary)'
+              backgroundColor: hasFailedRows ? 'var(--di-error-light)' : 'var(--di-surface-secondary)'
             }}
           >
-            <div style={{ fontSize: 11, color: result.failedRows > 0 ? 'var(--di-error)' : 'var(--di-text-secondary)', textTransform: 'uppercase' }}>
-              Failed
+            <div style={{ fontSize: 11, color: hasFailedRows ? 'var(--di-error)' : 'var(--di-text-secondary)', textTransform: 'uppercase' }}>
+              Failed / Invalid
             </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: result.failedRows > 0 ? 'var(--di-error)' : 'var(--di-text)', marginTop: 4 }}>
-              {result.failedRows}
+            <div style={{ fontSize: 20, fontWeight: 700, color: hasFailedRows ? 'var(--di-error)' : 'var(--di-text)', marginTop: 4 }}>
+              {failedCount}
             </div>
           </div>
         </div>
@@ -124,16 +145,62 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset, onClose
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
-          <button type="button" className="di-btn di-btn-primary" onClick={onReset}>
+        <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 12 }}>
+          {hasFailedRows && (
+            <button
+              type="button"
+              className="di-btn"
+              onClick={() => {
+                if (onDownloadInvalidRows) {
+                  onDownloadInvalidRows('csv');
+                }
+              }}
+              style={{
+                backgroundColor: 'var(--di-error, #dc2626)',
+                color: '#ffffff',
+                border: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: 'pointer'
+              }}
+              title="Download invalid and failed records with error reasons"
+            >
+              <IconDownload size={14} />
+              Download Invalid Records {failedCount > 0 ? `(${failedCount})` : ''}
+            </button>
+          )}
+
+          {(onBackToListing || onClose) && (
+            <button
+              type="button"
+              className="di-btn di-btn-primary"
+              onClick={onBackToListing || onClose}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: 'pointer'
+              }}
+            >
+              {backToListingLabel}
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="di-btn di-btn-secondary"
+            onClick={onReset}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              cursor: 'pointer'
+            }}
+          >
             <IconRefreshCw size={14} />
             Import Another File
           </button>
-          {onClose && (
-            <button type="button" className="di-btn di-btn-secondary" onClick={onClose}>
-              Done
-            </button>
-          )}
         </div>
       </div>
     </div>

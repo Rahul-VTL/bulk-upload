@@ -9,6 +9,7 @@ export interface ImportSummaryProps {
   allowImportWithErrors?: boolean;
   allowImportWithWarnings?: boolean;
   onProceed: () => void;
+  onProceedValidOnly?: () => void;
   onBack: () => void;
 }
 
@@ -19,6 +20,7 @@ export const ImportSummary: React.FC<ImportSummaryProps> = ({
   allowImportWithErrors = false,
   allowImportWithWarnings = true,
   onProceed,
+  onProceedValidOnly,
   onBack
 }) => {
   const hasErrors = statistics.invalid > 0;
@@ -164,24 +166,45 @@ export const ImportSummary: React.FC<ImportSummaryProps> = ({
           >
             <IconAlertCircle size={18} />
             <span>
-              <strong>Cannot proceed:</strong> There are {statistics.invalid} error(s) remaining in the data. Please go back to the spreadsheet editor to correct them.
+              {statistics.valid > 0 ? (
+                <>
+                  <strong>Notice:</strong> There are {statistics.invalid} invalid record(s). You can import only the {statistics.valid} valid records, or return to correct them.
+                </>
+              ) : (
+                <>
+                  <strong>Cannot proceed:</strong> All records have errors ({statistics.invalid} invalid). Please go back to the spreadsheet editor to correct them.
+                </>
+              )}
             </span>
           </div>
         )}
 
         {!isLoading && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <button type="button" className="di-btn di-btn-secondary" onClick={onBack}>
               Back to Spreadsheet
             </button>
-            <button
-              type="button"
-              className="di-btn di-btn-primary"
-              disabled={!canProceed}
-              onClick={onProceed}
-            >
-              Start Final Import
-            </button>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {hasErrors && statistics.valid > 0 && (
+                <button
+                  type="button"
+                  className="di-btn di-btn-primary"
+                  onClick={onProceedValidOnly || onProceed}
+                >
+                  Import Valid Only ({statistics.valid})
+                </button>
+              )}
+              {(statistics.invalid === 0 || allowImportWithErrors) && (
+                <button
+                  type="button"
+                  className={hasErrors && statistics.valid > 0 ? "di-btn di-btn-secondary" : "di-btn di-btn-primary"}
+                  disabled={!canProceed}
+                  onClick={onProceed}
+                >
+                  Start Final Import ({statistics.total})
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

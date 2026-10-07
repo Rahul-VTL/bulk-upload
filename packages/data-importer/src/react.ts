@@ -6,6 +6,7 @@ import './theme/theme.css';
 
 export * from './types';
 export * from './hooks/useDataImporter';
+export * from './importer/chunk-uploader';
 export * from './context/DataImporterContext';
 export * from './components/DataImporter';
 export * from './components/DataImporterModal';

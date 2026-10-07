@@ -820,24 +820,66 @@ export class DataImporterCore {
 
   // --- Step 6: Import Execution ---
 
-  public async import(): Promise<ImportResult> {
+  public async import(importOptions?: { onlyValid?: boolean }): Promise<ImportResult> {
+    const onlyValid = importOptions?.onlyValid ?? false;
+
+    let rowsToImport = this.state.rows;
+    let rowIdsToImport = this.state.rowIds;
+    let errorsToImport = this.state.errors;
+    let skippedInvalidCount = 0;
+    const skippedRowErrors: Record<string, ValidationError[]> = {};
+
+    if (onlyValid) {
+      const validRows: Record<string, unknown>[] = [];
+      const validRowIds: string[] = [];
+
+      for (let i = 0; i < this.state.rows.length; i++) {
+        const id = this.state.rowIds[i];
+        const hasErr = this.state.rowErrors[id] && this.state.rowErrors[id].length > 0;
+        if (!hasErr) {
+          validRows.push(this.state.rows[i]);
+          validRowIds.push(id);
+        } else {
+          skippedInvalidCount++;
+          skippedRowErrors[id] = this.state.rowErrors[id];
+        }
+      }
+
+      if (validRows.length === 0) {
+        throw new ImporterError({
+          code: 'NO_VALID_ROWS_TO_IMPORT',
+          message: 'No valid records found to import. Please correct errors before importing.'
+        });
+      }
+
+      rowsToImport = validRows;
+      rowIdsToImport = validRowIds;
+      errorsToImport = {};
+    }
+
     this.updateState({
       currentStep: 'importing',
       isLoading: true,
-      loadingMessage: 'Importing data...'
+      loadingMessage: `Importing ${rowsToImport.length} record${rowsToImport.length === 1 ? '' : 's'}...`
     });
 
-    this.events.emit('importStarted', { totalRows: this.state.rows.length });
+    this.events.emit('importStarted', { totalRows: rowsToImport.length });
 
     try {
       const result = await this.importEngine.executeImport(
-        this.state.rows,
-        this.state.rowIds,
-        this.state.errors,
+        rowsToImport,
+        rowIdsToImport,
+        errorsToImport,
         this.state.warnings,
         (progress) => {
           this.updateState({ progress });
           this.events.emit('importProgress', progress);
+        },
+        {
+          onlyValid,
+          originalTotalRows: this.state.rows.length,
+          skippedInvalidCount,
+          skippedRowErrors
         }
       );
 
@@ -861,6 +903,24 @@ export class DataImporterCore {
       this.events.emit('importFailed', { error: err });
       throw err;
     }
+  }
+
+  public downloadInvalidRows(format: 'csv' | 'xlsx' = 'csv', filename?: string): void {
+    const baseName =
+      filename || `invalid-rows-${(this.state.fileName || 'data').replace(/\.[^/.]+$/, '')}`;
+    ErrorExporter.downloadInvalidRows(
+      format,
+      this.state.errors,
+      this.state.rowErrors,
+      this.state.rows,
+      this.state.rowIds,
+      this.schema,
+      baseName
+    );
+    this.events.emit('errorExported', {
+      format,
+      count: Object.keys(this.state.rowErrors).length
+    });
   }
 
   public exportErrors(format: 'csv' | 'xlsx'): void {

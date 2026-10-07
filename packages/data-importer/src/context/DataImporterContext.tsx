@@ -14,7 +14,7 @@ export const DataImporterProvider: React.FC<DataImporterProviderProps> = ({
   value,
   ...options
 }) => {
-  const importerApi = useDataImporter(options);
+  const importerApi = useDataImporter(options as ImporterOptions);
   const contextValue = value || importerApi;
 
   return (

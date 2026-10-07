@@ -161,7 +161,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
   // Viewport tracking for Virtualization
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el) return undefined;
 
     const handleScroll = () => {
       setScrollTop(el.scrollTop);

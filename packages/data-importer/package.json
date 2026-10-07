@@ -1,5 +1,5 @@
 {
-  "name": "@rahul_kumar_sharma/data-importer",
+  "name": "data-importer",
   "version": "1.0.0",
   "description": "Production-grade, reusable, framework-agnostic Data Importer, Data Preparation & Editable Spreadsheet Library",
   "type": "module",

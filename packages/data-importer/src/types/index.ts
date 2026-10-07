@@ -181,7 +181,23 @@ export interface ImportProgress {
   percentage: number;
   successCount: number;
   failureCount: number;
+  currentChunk?: number;
+  totalChunks?: number;
+  chunkSize?: number;
 }
+
+export interface ChunkMeta {
+  chunkIndex: number;
+  totalChunks: number;
+  startIndex: number;
+  endIndex: number;
+  totalRows: number;
+}
+
+export type ChunkUploadHandler = (
+  chunkRows: Record<string, unknown>[],
+  meta: ChunkMeta
+) => Promise<any>;
 
 export interface ImportRowResult {
   rowId: string;
@@ -281,6 +297,10 @@ export interface ImporterEvents {
   stateChanged: { state: ImporterState };
 }
 
+export interface ImportExecutionOptions {
+  onlyValid?: boolean;
+}
+
 export interface ImporterOptions {
   schema: ImporterSchema;
   acceptedFiles?: ('csv' | 'tsv' | 'xls' | 'xlsx' | string)[];
@@ -290,12 +310,20 @@ export interface ImporterOptions {
   batchSize?: number;
   autoMapThreshold?: number; // 0-1 confidence default 0.6
   checkDuplicate?: (row: Record<string, unknown>) => boolean | Promise<boolean>;
+  /** Whether to upload data in chunks to the server (default: true if chunkSize or onUploadChunk is provided) */
+  chunked?: boolean;
+  /** Number of rows per chunk sent to the server (default: 100) */
+  chunkSize?: number;
+  /** Handler invoked sequentially for each chunk of records */
+  onUploadChunk?: ChunkUploadHandler;
   onImport?: (
     rows: Record<string, unknown>[],
     progressCallback: (progress: ImportProgress) => void
   ) => Promise<ImportResult | ImportRowResult[] | void>;
   onComplete?: (result: ImportResult) => void;
   onCancel?: () => void;
+  onBackToListing?: () => void;
+  backToListingLabel?: string;
   observability?: {
     onTiming?: (metric: string, durationMs: number) => void;
   };
@@ -351,6 +379,7 @@ export interface ComponentOverrides {
     state: ImporterState;
     allowImportWithErrors?: boolean;
     onImport: () => void;
+    onImportValidOnly?: () => void;
     onBack?: () => void;
   }>;
   Summary?: React.ComponentType<{
@@ -360,6 +389,7 @@ export interface ComponentOverrides {
     allowImportWithErrors?: boolean;
     allowImportWithWarnings?: boolean;
     onProceed: () => void;
+    onProceedValidOnly?: () => void;
     onBack: () => void;
   }>;
   ImportSummary?: React.ComponentType<{
@@ -369,6 +399,7 @@ export interface ComponentOverrides {
     allowImportWithErrors?: boolean;
     allowImportWithWarnings?: boolean;
     onProceed: () => void;
+    onProceedValidOnly?: () => void;
     onBack: () => void;
   }>;
   ErrorPanel?: React.ComponentType<{
@@ -379,5 +410,9 @@ export interface ComponentOverrides {
     result: ImportResult;
     onReset: () => void;
     onClose?: () => void;
+    onBackToListing?: () => void;
+    onDownloadInvalidRows?: (format?: 'csv' | 'xlsx') => void;
+    backToListingLabel?: string;
+    invalidCount?: number;
   }>;
 }

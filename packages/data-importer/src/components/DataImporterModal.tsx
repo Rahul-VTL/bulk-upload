@@ -24,7 +24,7 @@ export const DataImporterModal: React.FC<DataImporterModalProps> = ({
 }) => {
   // Prevent body scroll when modal is open
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) return undefined;
 
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -128,6 +128,14 @@ export const DataImporterModal: React.FC<DataImporterModalProps> = ({
             theme={theme}
             onCancel={() => {
               if (importerProps.onCancel) {
+                importerProps.onCancel();
+              }
+              onClose();
+            }}
+            onBackToListing={() => {
+              if (importerProps.onBackToListing) {
+                importerProps.onBackToListing();
+              } else if (importerProps.onCancel) {
                 importerProps.onCancel();
               }
               onClose();

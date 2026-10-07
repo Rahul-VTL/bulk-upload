@@ -26,12 +26,17 @@ export interface DataImporterProps {
   theme?: ThemeConfig;
   components?: ComponentOverrides;
   checkDuplicate?: (row: Record<string, unknown>) => boolean | Promise<boolean>;
+  chunkSize?: number;
+  onUploadChunk?: (chunkRows: Record<string, unknown>[], meta: any) => Promise<any>;
   onImport?: (
     rows: Record<string, unknown>[],
     progressCallback: (progress: ImportProgress) => void
   ) => Promise<ImportResult | ImportRowResult[] | void>;
   onComplete?: (result: ImportResult) => void;
   onCancel?: () => void;
+  onBackToListing?: () => void;
+  backToListingLabel?: string;
+  onDownloadInvalidRows?: (format?: 'csv' | 'xlsx') => void;
   initialFile?: File | null;
   className?: string;
   style?: React.CSSProperties;
@@ -57,9 +62,14 @@ export const DataImporter: React.FC<DataImporterProps> = ({
   theme,
   components = {},
   checkDuplicate,
+  chunkSize,
+  onUploadChunk,
   onImport,
   onComplete,
   onCancel,
+  onBackToListing,
+  backToListingLabel = 'Back to Listing',
+  onDownloadInvalidRows,
   initialFile,
   className = '',
   style,
@@ -80,6 +90,8 @@ export const DataImporter: React.FC<DataImporterProps> = ({
     allowImportWithErrors,
     allowImportWithWarnings,
     checkDuplicate,
+    chunkSize,
+    onUploadChunk,
     onImport,
     onComplete,
     onCancel
@@ -271,7 +283,7 @@ export const DataImporter: React.FC<DataImporterProps> = ({
                       )}
                     </div>
 
-                    <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                       <button
                         type="button"
                         className="di-btn di-btn-secondary"
@@ -280,18 +292,48 @@ export const DataImporter: React.FC<DataImporterProps> = ({
                       >
                         ← Back to Column Mapping
                       </button>
-                      <button
-                        type="button"
-                        className="di-btn di-btn-primary"
-                        onClick={() => {
-                          importerApi.import().catch((err) => {
-                            console.error('Import error:', err);
-                          });
-                        }}
-                        disabled={state.statistics.invalid > 0 && !allowImportWithErrors}
-                      >
-                        Import {state.rows.length} Records
-                      </button>
+
+                      {/* If there are invalid rows AND there are valid rows, allow importing ONLY the valid rows! */}
+                      {state.statistics.invalid > 0 && state.statistics.valid > 0 && (
+                        <button
+                          type="button"
+                          className="di-btn di-btn-primary"
+                          onClick={() => {
+                            importerApi.import({ onlyValid: true }).catch((err) => {
+                              console.error('Import valid only error:', err);
+                            });
+                          }}
+                          title="Import only records that passed validation"
+                        >
+                          Import Valid Only ({state.statistics.valid} Records)
+                        </button>
+                      )}
+
+                      {/* Import All button */}
+                      {(state.statistics.invalid === 0 || allowImportWithErrors) && (
+                        <button
+                          type="button"
+                          className={state.statistics.invalid > 0 ? 'di-btn di-btn-secondary' : 'di-btn di-btn-primary'}
+                          onClick={() => {
+                            importerApi.import().catch((err) => {
+                              console.error('Import error:', err);
+                            });
+                          }}
+                          disabled={state.rows.length === 0 || (state.statistics.invalid > 0 && !allowImportWithErrors)}
+                        >
+                          Import All ({state.rows.length} Records)
+                        </button>
+                      )}
+
+                      {state.statistics.valid === 0 && state.statistics.invalid > 0 && !allowImportWithErrors && (
+                        <button
+                          type="button"
+                          className="di-btn di-btn-primary"
+                          disabled={true}
+                        >
+                          No Valid Records to Import
+                        </button>
+                      )}
                     </div>
                   </footer>
                 )}
@@ -312,6 +354,9 @@ export const DataImporter: React.FC<DataImporterProps> = ({
                 onProceed={() => {
                   importerApi.import();
                 }}
+                onProceedValidOnly={() => {
+                  importerApi.import({ onlyValid: true });
+                }}
                 onBack={() => {
                   importerApi.setStep('review');
                 }}
@@ -327,6 +372,10 @@ export const DataImporter: React.FC<DataImporterProps> = ({
                 result={state.result}
                 onReset={importerApi.reset}
                 onClose={onCancel}
+                onBackToListing={onBackToListing || onCancel}
+                onDownloadInvalidRows={onDownloadInvalidRows || (() => importerApi.downloadInvalidRows('csv'))}
+                backToListingLabel={backToListingLabel}
+                invalidCount={state.statistics.invalid}
               />
             )
           )}

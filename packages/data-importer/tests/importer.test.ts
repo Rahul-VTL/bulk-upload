@@ -466,5 +466,59 @@ describe('Data Importer - Comprehensive Test Suite', () => {
 
       importer.destroy();
     });
+
+    it('allows uploading ONLY valid rows when invalid rows exist', async () => {
+      let importedRowsPassed: any[] = [];
+      const mockImportApi = vi.fn().mockImplementation(async (rows) => {
+        importedRowsPassed = rows;
+        return {
+          totalRows: rows.length,
+          validRows: rows.length,
+          invalidRows: 0,
+          warningRows: 0,
+          importedRows: rows.length,
+          failedRows: 0,
+          duration: 20
+        };
+      });
+
+      const importer = createImporter({
+        schema,
+        onImport: mockImportApi
+      });
+
+      // 1 valid row, 1 invalid row (missing required email)
+      const csvContent = 'Full Name,Email,Quantity\nValid Person,valid@example.com,10\nInvalid Person,,5';
+      const file = new File([csvContent], 'test_partial.csv', { type: 'text/csv' });
+
+      await importer.loadFile(file);
+      await importer.confirmMappingAndPrepare();
+
+      const state = importer.getState();
+      expect(state.rows).toHaveLength(2);
+      expect(state.statistics.valid).toBe(1);
+      expect(state.statistics.invalid).toBe(1);
+
+      // Execute import with onlyValid: true
+      const result = await importer.import({ onlyValid: true });
+
+      // Verify onImport received ONLY the valid row
+      expect(mockImportApi).toHaveBeenCalledTimes(1);
+      expect(importedRowsPassed).toHaveLength(1);
+      expect(importedRowsPassed[0].name).toBe('Valid Person');
+
+      // Verify result tracking
+      expect(result.totalRows).toBe(2);
+      expect(result.validRows).toBe(1);
+      expect(result.invalidRows).toBe(1);
+      expect(result.importedRows).toBe(1);
+      expect(result.failedRows).toBe(1);
+      expect(importer.getState().currentStep).toBe('result');
+
+      // Verify downloadInvalidRows doesn't throw
+      expect(() => importer.downloadInvalidRows('csv')).not.toThrow();
+
+      importer.destroy();
+    });
   });
 });

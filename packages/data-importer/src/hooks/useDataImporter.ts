@@ -48,8 +48,11 @@ export function useDataImporter(options: ImporterOptions) {
     selectAllRows: () => importer.selectAllRows(),
     clearSelection: () => importer.clearSelection(),
     exportErrors: (format: 'csv' | 'xlsx') => importer.exportErrors(format),
+    downloadInvalidRows: (format: 'csv' | 'xlsx' = 'csv', filename?: string) =>
+      importer.downloadInvalidRows(format, filename),
     validate: () => importer.validate(),
-    import: () => importer.import(),
+    import: (options?: import('../types').ImportExecutionOptions) => importer.import(options),
+    importValidOnly: () => importer.import({ onlyValid: true }),
     reset: () => importer.reset(),
     setStep: (step: import('../types').StepState) => importer.setStep(step),
     getDisplayRows: () => importer.getDisplayRows(),

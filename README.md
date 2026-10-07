@@ -10,16 +10,16 @@
 
 ## 🎯 What is Data Importer?
 
-**Data Importer** is a developer product that solves bulk file import and data preparation for any modern web application. Whether you are building an ERP, CRM, HR system, admin portal, SaaS, education platform, or financial app, Data Importer eliminates the need to build file uploaders, CSV/XLSX parsers, column mappers, spreadsheet editors, and validation engines from scratch.
+**Data Importer** solves bulk file import and data preparation for any modern web application. Whether you are building an ERP, CRM, HR system, admin portal, SaaS, education platform, or financial app, Data Importer eliminates the need to build file uploaders, CSV/XLSX parsers, column mappers, spreadsheet editors, and validation engines from scratch.
 
 ### 💡 Core Philosophy
 - **Completely Generic**: Knows **nothing** about backend APIs, databases, authentication, or domain models.
 - **Consumer Controlled**: The host application owns APIs, authentication, permissions, database schemas, and business submission.
 - **Layered Architecture**: Zero-dependency core headless engine (`data-importer`) paired with a React adapter (`data-importer/react`) and Web Component wrapper (`<generic-data-importer>`).
-- **Flexible UI System**: Use the beautiful **Default UI out-of-the-box**, or replace specific components, or build a **100% custom UI** with full headless primitives.
+- **Flexible UI System**: Use the enterprise-grade **Default UI out-of-the-box**, customize via slot overrides & render props, or build a **100% custom UI** with headless primitives.
 
 ```
-FILE → PARSE → MAP → TRANSFORM → VALIDATE → EDIT → REVIEW → IMPORT
+FILE → PARSE → MAP → TRANSFORM → VALIDATE → EDIT → REVIEW → IMPORT (ALL OR VALID ONLY) → RESULT & ERROR EXPORT
 ```
 
 ---
@@ -32,39 +32,77 @@ FILE → PARSE → MAP → TRANSFORM → VALIDATE → EDIT → REVIEW → IMPORT
 | **Multi-Sheet Workbooks** | Interactive worksheet detection, row/column counts, and sheet selection. |
 | **Intelligent Mapping** | 6 matching strategies: Exact, Case-Insensitive, Trimmed, Normalized, Alias, and Fuzzy matching with 0-1 confidence scoring. |
 | **High-Column Scalability** | Smooth vertical and horizontal scrolling with **sticky column headers** in mapping and review when files contain dozens or hundreds of columns. |
-| **Flexible Step Navigation** | Bidirectional flow: easily go **back to column mapping** from the review grid, click previous steps in the header stepper, or navigate back to change sheets/files. |
+| **Bidirectional Navigation** | Effortlessly return to **Column Mapping** from the review spreadsheet, jump back via interactive header stepper clicks, or go back to change sheets. |
+| **Upload Only Valid Records** | When files contain errors, users can upload **only valid rows** (`Import Valid Only ({count})`) without being blocked by invalid rows. |
+| **Download Invalid Records** | After upload finishes, download all failed/invalid rows in CSV/XLSX with all original columns plus an **Error Reason** column for quick user correction. |
+| **Back to Listing Navigation** | Post-upload result view displays a dedicated **Back to Listing** button (`onBackToListing`, `backToListingLabel`) to smoothly return to listing pages. |
 | **Transformation Pipeline** | Built-in rules (`trim`, `uppercase`, `lowercase`, `capitalize`, `removeWhitespace`, `stringToNumber`, `stringToBoolean`, `stringToDate`, `normalizeDate`) and custom transformers. |
 | **Comprehensive Validation** | Required, Email, Phone, Number, Integer, Date, Min/Max bounds, Regex, Enum, Custom Sync/Async, and Cross-Field validation. |
 | **Duplicate Detection** | Single-field, composite-key deduplication (`keep-first`, `keep-last`, `reject`, `allow-warning`) and external database checks (`checkDuplicate`). |
 | **Virtualized Spreadsheet** | 60fps windowed grid rendering handling tens of thousands of rows, keyboard navigation (Enter/Tab/Arrows/Escape), inline editing, and cell selection. |
 | **Search, Sort & Filter** | Global text search, multi-column stable sorting, and nested AND/OR filter builder supporting all 12 operators. |
 | **History & Bulk Ops** | Memory-efficient patch-based Undo/Redo stack, bulk editing of selected rows, bulk row deletion, and row addition. |
-| **Error Export** | Immediate export of invalid rows and error diagnostics to CSV or XLSX format. |
-| **Theme System & Headless** | Native CSS custom properties (`--di-*`), component slot overrides, render props, context provider, and complete headless hook. |
+| **Theme System & Headless** | Native CSS custom properties (`--di-*`), component slot overrides, step render props, context provider, and complete headless hook. |
 
 ---
 
-## 📦 Installation
+## 📦 How to Use in Any Project
+
+You can use `data-importer` in any project using one of the following methods:
+
+### Method 1: Install Directly from GitHub
 
 ```bash
-# Core headless engine + React adapter
+# Using Git repository URL
+npm install "git+https://github.com/Rahul-VTL/bulk-upload.git#path:packages/data-importer"
+# or
+pnpm add "git+https://github.com/Rahul-VTL/bulk-upload.git#path:packages/data-importer"
+# or
+yarn add "git+https://github.com/Rahul-VTL/bulk-upload.git#path:packages/data-importer"
+```
+
+### Method 2: Local Tarball (`npm pack`)
+You can pack the package into a `.tgz` file and install it in any project without publishing to npm:
+
+1. Inside `data-importer`:
+   ```bash
+   pnpm build
+   npm pack
+   # Output: data-importer-1.0.0.tgz
+   ```
+
+2. In your target project:
+   ```bash
+   npm install /path/to/data-importer-1.0.0.tgz
+   # or
+   pnpm add /path/to/data-importer-1.0.0.tgz
+   ```
+
+### Method 3: Local Directory Reference (`file:`)
+In `package.json` of your target project:
+```json
+{
+  "dependencies": {
+    "data-importer": "file:../path-to/bulk-upload/packages/data-importer"
+  }
+}
+```
+
+### Method 4: Install from npm (Once Published)
+```bash
 npm install data-importer
 # or
 pnpm add data-importer
-# or
-yarn add data-importer
 ```
 
 ---
 
 ## ⚡ Quick Start
 
-### 1. Default UI (Out of the box)
-
-Zero configuration required. Provides complete file upload dropzone, sheet picker, fuzzy column mapping, virtual spreadsheet editor, error highlighting, and progress tracking:
+### 1. React Application (Default Turnkey UI)
 
 ```tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { DataImporter, builtInValidators, builtInTransformers } from 'data-importer/react';
 import 'data-importer/styles.css';
 
@@ -87,6 +125,12 @@ const schema = [
     validators: [builtInValidators.email()]
   },
   {
+    key: 'phone',
+    label: 'Phone Number',
+    type: 'string',
+    validators: [builtInValidators.phone()]
+  },
+  {
     key: 'plan',
     label: 'Plan Tier',
     type: 'enum',
@@ -98,28 +142,28 @@ const schema = [
   }
 ];
 
-export function ImportModal() {
-  const handleImport = async (rows, onProgress) => {
+export function UserImportPopup({ onBackToListing }) {
+  const [isOpen, setIsOpen] = useState(true);
+
+  const handleImport = async (rows) => {
+    // rows contains only valid records if user chooses "Import Valid Only"
     const response = await fetch('/api/customers/bulk-import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ records: rows })
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to import records');
-    }
-
     return await response.json();
   };
 
   return (
     <DataImporter
       schema={schema}
-      acceptedFiles={['csv', 'xlsx', 'tsv']}
+      theme={{ primary: '#003366' }}
       onImport={handleImport}
+      onBackToListing={onBackToListing}
+      backToListingLabel="Back to Customers"
       onComplete={(result) => {
-        console.log(`Successfully imported ${result.importedRows} rows!`);
+        console.log('Import finished:', result);
       }}
     />
   );
@@ -128,12 +172,39 @@ export function ImportModal() {
 
 ---
 
-## 🎨 UI Customization: Default UI vs 100% Custom UI
+## 🌟 Upload Only Valid Rows & Error Download
 
-Data Importer is designed with an API-first approach that accommodates any UI requirements:
+### 1. Upload Valid Rows Only
+When your uploaded dataset has errors:
+- If `allowImportWithErrors: false` (default), users are not blocked! They can click **`Import Valid Only ({count} Records)`**.
+- Only records that pass validation are submitted to `onImport` or `onUploadChunk`.
+- The skipped invalid rows are automatically tracked and reported in the result summary.
 
-### 1. Headless React Hook (`useDataImporter`) — *100% Custom UI*
-If you want to build custom screens using your own design system (Tailwind CSS, MUI, Shadcn UI, AntD, Chakra):
+### 2. Download Invalid Records with Error Reasons
+When upload completes:
+- If any invalid or duplicate rows existed, the result view displays:
+  **`Download Invalid Records ({count})`**
+- Clicking this generates a clean spreadsheet containing:
+  - All original data columns from the invalid rows
+  - An **`Error Reason`** column with clear human-readable error descriptions for each row
+- Users can review the errors, fix values directly in the file, delete the error reason column, and re-upload!
+
+### 3. Back to Listing Button
+The result screen provides a **`Back to Listing`** button to return directly to the parent listing table:
+```tsx
+<DataImporter
+  schema={schema}
+  onImport={handleImport}
+  onBackToListing={() => navigate('/customers')}
+  backToListingLabel="Back to Customers Listing"
+/>
+```
+
+---
+
+## 🎨 Headless Custom UI (`useDataImporter`)
+
+For 100% custom UI control (Tailwind, Shadcn, MUI, AntD), use the headless hook:
 
 ```tsx
 import { useDataImporter } from 'data-importer/react';
@@ -142,21 +213,26 @@ function CustomImporter() {
   const {
     state,
     loadFile,
-    selectSheet,
     setMapping,
     confirmMappingAndPrepare,
     updateCell,
     undo,
     redo,
     setStep,
-    import: runImport
+    import: runImport,
+    importValidOnly,
+    downloadInvalidRows,
+    reset
   } = useDataImporter({
     schema,
-    onImport: handleImport
+    onImport: async (rows) => {
+      return await myApi.submit(rows);
+    }
   });
 
   return (
-    <div className="my-custom-container">
+    <div>
+      {/* Upload Step */}
       {state.currentStep === 'upload' && (
         <input
           type="file"
@@ -165,11 +241,42 @@ function CustomImporter() {
         />
       )}
 
+      {/* Review Step */}
       {state.currentStep === 'review' && (
         <div>
-          <h2>Review Data ({state.rows.length} rows)</h2>
-          <button onClick={() => setStep('mapping')}>← Back to Mapping</button>
-          <button onClick={() => runImport()}>Submit Records</button>
+          <h3>Total: {state.rows.length} | Valid: {state.statistics.valid} | Errors: {state.statistics.invalid}</h3>
+
+          {/* Import Only Valid Rows */}
+          {state.statistics.invalid > 0 && state.statistics.valid > 0 && (
+            <button onClick={() => importValidOnly()}>
+              Upload Valid Only ({state.statistics.valid})
+            </button>
+          )}
+
+          {/* Import All */}
+          <button onClick={() => runImport()} disabled={state.statistics.invalid > 0}>
+            Upload All
+          </button>
+        </div>
+      )}
+
+      {/* Result Step */}
+      {state.currentStep === 'result' && (
+        <div>
+          <h3>Import Complete!</h3>
+          <p>Imported: {state.result?.importedRows} | Failed: {state.result?.failedRows}</p>
+
+          {/* Download Invalid Records Button */}
+          {state.result?.failedRows > 0 && (
+            <button onClick={() => downloadInvalidRows('csv')}>
+              Download Invalid Records ({state.result.failedRows})
+            </button>
+          )}
+
+          {/* Back to Listing Button */}
+          <button onClick={() => window.location.href = '/listing'}>
+            Back to Listing
+          </button>
         </div>
       )}
     </div>
@@ -177,143 +284,25 @@ function CustomImporter() {
 }
 ```
 
-### 2. Render Props via `children`
-Render a custom UI inline while retaining container styles:
+---
 
-```tsx
-<DataImporter schema={schema} onImport={handleImport}>
-  {({ state, loadFile, setStep, import: runImport }) => (
-    <div>
-      <h3>Current Step: {state.currentStep}</h3>
-      {state.currentStep === 'review' && (
-        <div>
-          <button onClick={() => setStep('mapping')}>← Back to Mapping</button>
-          <button onClick={() => runImport()}>Finish Import</button>
-        </div>
-      )}
-    </div>
-  )}
-</DataImporter>
-```
+## ⚡ Chunked Upload for Large Files
 
-### 3. Step Render Props (`renderUpload`, `renderReview`, `renderFooter`, etc.)
-Customize specific steps while keeping other steps on the default UI:
+Upload 10,000+ rows smoothly in chunks:
 
 ```tsx
 <DataImporter
   schema={schema}
-  onImport={handleImport}
-  renderUpload={({ loadFile }) => (
-    <MyCustomDropzone onDrop={(file) => loadFile(file)} />
-  )}
-  renderFooter={({ state, setStep, import: runImport }) => (
-    <div className="flex justify-between p-4 bg-white border-t">
-      <button onClick={() => setStep('mapping')}>← Back to Column Mapping</button>
-      <button onClick={() => runImport()} className="btn-primary">
-        Import {state.rows.length} Records
-      </button>
-    </div>
-  )}
-/>
-```
-
-### 4. Context Provider (`DataImporterProvider` & `useDataImporterContext`)
-For deeply nested compound component trees without prop drilling:
-
-```tsx
-import { DataImporterProvider, useDataImporterContext } from 'data-importer/react';
-
-function CustomSubmitBar() {
-  const { state, setStep, import: runImport } = useDataImporterContext();
-  return (
-    <div>
-      <button onClick={() => setStep('mapping')}>← Back</button>
-      <button onClick={() => runImport()} disabled={state.isLoading}>
-        {state.isLoading ? 'Importing...' : 'Submit Records'}
-      </button>
-    </div>
-  );
-}
-
-export function App() {
-  return (
-    <DataImporterProvider schema={schema} onImport={handleImport}>
-      <CustomHeader />
-      <CustomGrid />
-      <CustomSubmitBar />
-    </DataImporterProvider>
-  );
-}
-```
-
-### 5. Component Slot Overrides
-Swap default subcomponents with your own React implementations:
-
-```tsx
-<DataImporter
-  schema={schema}
-  onImport={handleImport}
-  components={{
-    Header: MyCustomHeader,
-    UploadZone: MyCustomUploadZone,
-    SheetSelector: MyCustomSheetSelector,
-    MappingPanel: MyCustomMappingPanel,
-    Grid: MyCustomGrid,
-    Footer: MyCustomFooter
+  chunkSize={100} // sends 100 rows per chunk
+  onUploadChunk={async (chunk, meta) => {
+    // meta: { chunkIndex, totalChunks, startIndex, endIndex, totalRows }
+    await fetch('/api/import-chunk', {
+      method: 'POST',
+      body: JSON.stringify({ chunk, meta })
+    });
   }}
+  onBackToListing={() => navigate('/listing')}
 />
-```
-
----
-
-## 🔄 Bidirectional Navigation & High-Column Handling
-
-- **High Column Scalability**: When loading files with dozens or hundreds of columns, the Column Mapping view features an internal vertical scroll container with sticky headers (`th`), ensuring column headers remain visible while preserving the bottom action bar.
-- **Review to Mapping Back Navigation**: Easily return from the Review spreadsheet to Column Mapping at any point via the `← Back to Column Mapping` footer button or by clicking "Map Columns" in the stepper header.
-- **Mapping to Upload/Sheet Back Navigation**: Change selected sheets or pick another file using the `← Back` button in the Column Mapping footer.
-
----
-
-## 📚 Documentation Index
-
-Detailed documentation with complete code recipes is available in [`docs/`](./docs/):
-
-- [Architecture & Boundaries](./docs/architecture.md)
-- [Schema Specification](./docs/schema.md)
-- [File Parsers (CSV, TSV, XLSX)](./docs/parsing.md)
-- [Column Mapping Engine](./docs/mapping.md)
-- [Transformation Engine](./docs/transformation.md)
-- [Validation Engine & Custom Validators](./docs/validation.md)
-- [Duplicate Detection](./docs/duplicates.md)
-- [Editable Spreadsheet Grid](./docs/grid.md)
-- [Filtering & Sorting Engine](./docs/filtering.md)
-- [Importing Engine & Progress](./docs/importing.md)
-- [Error Handling & Export](./docs/error-handling.md)
-- [Theming & Design Tokens](./docs/theming.md)
-- [Component Overrides & Custom UI](./docs/customization.md)
-- [Typed Event System](./docs/events.md)
-- [Core API Reference](./docs/core-api.md)
-- [React Adapter & Hook](./docs/react.md)
-- [Web Component Integration](./docs/web-component.md)
-- [Performance & Virtualization](./docs/performance.md)
-- [Automated Testing](./docs/testing.md)
-
----
-
-## 🧪 Running the Playground & Tests
-
-```bash
-# Clone the repository
-cd data-importer
-
-# Install dependencies
-pnpm install
-
-# Run automated Vitest test suite
-pnpm test
-
-# Run interactive demo playground (Custom UI + Default UI live studio)
-pnpm dev
 ```
 
 ---

@@ -12,6 +12,7 @@ export class ImporterError extends Error {
   public readonly code: string;
   public readonly severity: ValidationSeverity;
   public readonly metadata?: Record<string, unknown>;
+  public readonly cause?: unknown;
 
   constructor(options: ErrorOptions) {
     super(options.message);

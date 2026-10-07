@@ -42,6 +42,7 @@ export * from './grid/history/history-manager';
 // Importer & Exporter
 export * from './importer/import-engine';
 export * from './importer/error-exporter';
+export * from './importer/chunk-uploader';
 
 // Web Component
 export * from './web-component';
