@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'data-importer/styles.css': path.resolve(__dirname, '../../packages/data-importer/src/theme/theme.css'),
       'data-importer/react': path.resolve(__dirname, '../../packages/data-importer/src/react.ts'),
       'data-importer': path.resolve(__dirname, '../../packages/data-importer/src/index.ts')
     }

@@ -14,12 +14,12 @@ importers:
 
   apps/playground:
     dependencies:
-      '@rahul_kumar_sharma/data-importer':
-        specifier: workspace:*
-        version: link:../../packages/data-importer
       '@shimmer-from-structure/react':
         specifier: ^2.4.6
         version: 2.4.6(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      data-importer:
+        specifier: workspace:*
+        version: link:../../packages/data-importer
       react:
         specifier: ^19.0.0
         version: 19.3.0

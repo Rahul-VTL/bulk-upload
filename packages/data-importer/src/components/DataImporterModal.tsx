@@ -126,6 +126,7 @@ export const DataImporterModal: React.FC<DataImporterModalProps> = ({
           <DataImporter
             {...importerProps}
             theme={theme}
+            style={{ width: '100%', height: '100%', ...style }}
             onCancel={() => {
               if (importerProps.onCancel) {
                 importerProps.onCancel();

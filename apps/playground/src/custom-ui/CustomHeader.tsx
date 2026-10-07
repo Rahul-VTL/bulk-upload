@@ -2,7 +2,7 @@ import React from 'react';
 import { PRESETS, PresetConfig } from '../presets';
 import { UseDataImporterReturn } from 'data-importer/react';
 
-export type PlaygroundMode = 'custom' | 'default' | 'shimmer';
+export type PlaygroundMode = 'custom' | 'modal' | 'default' | 'shimmer' | 'docs';
 
 interface CustomHeaderProps {
   api: UseDataImporterReturn;
@@ -45,7 +45,7 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
           <div>
             <div className="c-brand-title">Data Importer Studio</div>
             <div className="c-brand-subtitle">
-              Interactive Custom UI Playground with Real-time Validation
+              Interactive Bulk Upload, Validation & Spreadsheet Engine
             </div>
           </div>
         </div>
@@ -54,7 +54,7 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
           {/* Preset Selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, color: 'var(--c-text-muted)', fontWeight: 500 }}>
-              Schema Preset:
+              Preset:
             </span>
             <select
               value={selectedPreset.id}
@@ -91,14 +91,15 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
               background: '#f1f5f9',
               padding: 3,
               borderRadius: 8,
-              border: '1px solid var(--c-border)'
+              border: '1px solid var(--c-border)',
+              gap: 2
             }}
           >
             <button
               type="button"
               onClick={() => onSelectMode('custom')}
               style={{
-                padding: '5px 12px',
+                padding: '5px 11px',
                 borderRadius: 6,
                 fontSize: 12,
                 fontWeight: 600,
@@ -110,13 +111,31 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
                 transition: 'all 0.15s ease'
               }}
             >
-              ⚡ 100% Custom UI
+              ⚡ Custom UI
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectMode('modal')}
+              style={{
+                padding: '5px 11px',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                background: activeMode === 'modal' ? '#ffffff' : 'transparent',
+                color: activeMode === 'modal' ? 'var(--c-primary)' : 'var(--c-text-muted)',
+                boxShadow: activeMode === 'modal' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              🪟 Modal Dialog
             </button>
             <button
               type="button"
               onClick={() => onSelectMode('default')}
               style={{
-                padding: '5px 12px',
+                padding: '5px 11px',
                 borderRadius: 6,
                 fontSize: 12,
                 fontWeight: 600,
@@ -128,13 +147,13 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
                 transition: 'all 0.15s ease'
               }}
             >
-              📦 Default UI (Full Viewport)
+              📦 Embedded UI
             </button>
             <button
               type="button"
               onClick={() => onSelectMode('shimmer')}
               style={{
-                padding: '5px 12px',
+                padding: '5px 11px',
                 borderRadius: 6,
                 fontSize: 12,
                 fontWeight: 600,
@@ -146,7 +165,25 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
                 transition: 'all 0.15s ease'
               }}
             >
-              ✨ AutoShimmer System
+              ✨ AutoShimmer
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectMode('docs')}
+              style={{
+                padding: '5px 11px',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                background: activeMode === 'docs' ? '#ffffff' : 'transparent',
+                color: activeMode === 'docs' ? 'var(--c-primary)' : 'var(--c-text-muted)',
+                boxShadow: activeMode === 'docs' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              📖 Docs & Guide
             </button>
           </div>
 

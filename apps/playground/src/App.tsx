@@ -10,6 +10,8 @@ import { CustomReviewStep } from './custom-ui/CustomReviewStep';
 import { CustomImportingStep } from './custom-ui/CustomImportingStep';
 import { CustomResultStep } from './custom-ui/CustomResultStep';
 import { AutoShimmerDemo } from './components/AutoShimmerDemo';
+import { ModalDemoView } from './components/ModalDemoView';
+import { DocsGuide } from './components/DocsGuide';
 
 export const App: React.FC = () => {
   const [selectedPreset, setSelectedPreset] = useState<PresetConfig>(PRESETS[0]);
@@ -148,6 +150,18 @@ export const App: React.FC = () => {
           </div>
         )}
 
+        {activeMode === 'modal' && (
+          /* ============================================================ */
+          /* 🪟 PRE-BUILT MODAL DIALOG MODE (Button Popup Trigger)        */
+          /* ============================================================ */
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <ModalDemoView
+              selectedPreset={selectedPreset}
+              handleImport={handleImport}
+            />
+          </div>
+        )}
+
         {activeMode === 'default' && (
           /* ============================================================ */
           /* 📦 DEFAULT PACKAGE UI (Exact Viewport Height/Width Sizing)  */
@@ -193,6 +207,7 @@ export const App: React.FC = () => {
             <DataImporter
               key={selectedPreset.id}
               schema={selectedPreset.schema}
+              chunkSize={50}
               onImport={handleImport}
               onCancel={customImporterApi.reset}
               style={{ width: '100%', height: '100%' }}
@@ -206,6 +221,15 @@ export const App: React.FC = () => {
           /* ============================================================ */
           <div style={{ flex: 1, overflowY: 'auto' }}>
             <AutoShimmerDemo />
+          </div>
+        )}
+
+        {activeMode === 'docs' && (
+          /* ============================================================ */
+          /* 📖 CODE INTEGRATION & DEVELOPER GUIDE                        */
+          /* ============================================================ */
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <DocsGuide />
           </div>
         )}
       </main>
