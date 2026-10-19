@@ -45,6 +45,78 @@ yarn add data-importer
 import 'data-importer/styles.css';`
     },
     {
+      id: 'nextjs-integration',
+      category: 'ui-components',
+      title: '2. Direct Next.js Setup (App Router & Pages Router)',
+      badge: 'Next.js 13/14/15',
+      badgeColor: '#0f172a',
+      description: 'Works out-of-the-box in Next.js. Add "use client" at top, import styles in app/layout.tsx, and use dynamic(..., { ssr: false }) for smooth hydration.',
+      code: `// =========================================================================
+// 1. In app/layout.tsx (App Router) or pages/_app.tsx (Pages Router)
+// =========================================================================
+import 'data-importer/styles.css';
+
+// =========================================================================
+// 2. In app/candidates/page.tsx (Client Component)
+// =========================================================================
+'use client';
+
+import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
+import type { ImporterSchema } from 'data-importer';
+
+// Best practice: dynamic import avoids SSR hydration mismatches
+const DataImporterModal = dynamic(
+  () => import('data-importer/react').then((m) => m.DataImporterModal),
+  { ssr: false }
+);
+
+const candidateSchema: ImporterSchema = [
+  { key: 'name', label: 'Candidate Name', type: 'string', required: true },
+  { key: 'email', label: 'Email Address', type: 'email', required: true },
+  { key: 'photo', label: 'Photo Filename', type: 'string', required: true },
+  { key: 'signature', label: 'Signature Filename', type: 'string', required: true }
+];
+
+export default function CandidatePage() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div>
+      <button onClick={() => setIsOpen(true)}>Import Candidates (CSV + ZIP)</button>
+
+      {isOpen && (
+        <DataImporterModal
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          title="Upload Candidates & Photos"
+          schema={candidateSchema}
+          enableZipUpload={true}
+          zipUploadLabel="Upload ZIP containing photos and signatures"
+          zipAssetColumns={['photo', 'signature']}
+          onImport={async (rows, onProgress, meta) => {
+            const formData = new FormData();
+            formData.append('candidates', JSON.stringify(rows));
+            if (meta?.file) formData.append('csvFile', meta.file);
+            if (meta?.zipFile) formData.append('zipFile', meta.zipFile);
+
+            const res = await fetch('/api/candidates/bulk-upload', {
+              method: 'POST',
+              body: formData
+            });
+            return await res.json();
+          }}
+          onComplete={(res) => {
+            alert(\`Successfully imported \${res.importedRows} records!\`);
+            setIsOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}`
+    },
+    {
       id: 'zip-dual-upload',
       category: 'zip-workflow',
       title: '2. High-Volume Dual Upload: 10,000 Users (CSV) + 20,000 Images (ZIP)',

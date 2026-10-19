@@ -71,6 +71,147 @@ import 'data-importer/styles.css';
 
 ---
 
+## ⚡ Direct Next.js Integration (App Router & Pages Router)
+
+`data-importer` ships with pre-compiled ESM bundles (`dist/index.js`, `dist/react.js`), types (`dist/*.d.ts`), and CSS (`dist/react.css`). It works seamlessly out-of-the-box in Next.js 13, 14, and 15.
+
+### 1. Installation in Next.js Project
+```bash
+# Option A: From Local Directory Path (Development)
+pnpm add file:/path-to/bulk-upload/packages/data-importer
+# or
+npm install /path-to/bulk-upload/packages/data-importer
+
+# Option B: Directly from GitHub
+pnpm add "git+https://github.com/Rahul-VTL/bulk-upload.git#path:packages/data-importer"
+
+# Option C: From Tarball (.tgz)
+pnpm add /path-to/data-importer-1.0.0.tgz
+```
+
+### 2. Import Global Styles
+Add the stylesheet once in your root layout:
+
+- **Next.js App Router**: In `app/layout.tsx`:
+  ```tsx
+  import 'data-importer/styles.css';
+  ```
+- **Next.js Pages Router**: In `pages/_app.tsx`:
+  ```tsx
+  import 'data-importer/styles.css';
+  ```
+
+### 3. Frontend Component (`'use client'`)
+Because Next.js App Router defaults to Server Components, ensure your importer component specifies `'use client'` at the top:
+
+```tsx
+'use client';
+
+import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
+import type { ImporterSchema } from 'data-importer';
+
+// Best practice: dynamic import prevents SSR hydration mismatches
+const DataImporterModal = dynamic(
+  () => import('data-importer/react').then((mod) => mod.DataImporterModal),
+  { ssr: false }
+);
+
+const candidateSchema: ImporterSchema = [
+  { key: 'regNo', label: 'Registration No', type: 'string', required: true, unique: true },
+  { key: 'name', label: 'Candidate Name', type: 'string', required: true },
+  { key: 'email', label: 'Email', type: 'email', required: true },
+  { key: 'photo', label: 'Photo Filename', type: 'string', required: true },
+  { key: 'signature', label: 'Signature Filename', type: 'string', required: true }
+];
+
+export default function CandidateImportPage() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleImport = async (rows: any[], onProgress: any, meta: any) => {
+    const formData = new FormData();
+    formData.append('candidates', JSON.stringify(rows));
+    if (meta?.file) formData.append('csvFile', meta.file);
+    if (meta?.zipFile) formData.append('zipFile', meta.zipFile);
+
+    const res = await fetch('/api/candidates/bulk-upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Import failed');
+    }
+
+    return await res.json();
+  };
+
+  return (
+    <div style={{ padding: 40 }}>
+      <h1>Candidate Management</h1>
+      <button onClick={() => setIsOpen(true)}>
+        📥 Bulk Import Candidates (CSV + ZIP)
+      </button>
+
+      {isOpen && (
+        <DataImporterModal
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          title="Upload Candidates & Photos"
+          schema={candidateSchema}
+          enableZipUpload={true}
+          zipUploadLabel="Upload ZIP containing candidate photos and signatures"
+          zipAssetColumns={['photo', 'signature']}
+          onImport={handleImport}
+          onComplete={(result) => {
+            alert(`Success! Imported ${result.importedRows} records.`);
+            setIsOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+### 4. Next.js App Router API Route (`app/api/candidates/bulk-upload/route.ts`)
+Handling the multipart upload containing both JSON candidate rows and the ZIP archive:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(req: NextRequest) {
+  try {
+    const formData = await req.formData();
+    
+    // 1. Cleaned candidate rows (JSON)
+    const rawData = formData.get('candidates') as string;
+    const candidates = JSON.parse(rawData || '[]');
+
+    // 2. Uploaded ZIP archive (File / Blob)
+    const zipFile = formData.get('zipFile') as File | null;
+    const csvFile = formData.get('csvFile') as File | null;
+
+    console.log(`Received ${candidates.length} candidates. ZIP archive: ${zipFile?.name} (${zipFile?.size} bytes)`);
+
+    // TODO: Stream zipFile to S3 or disk and insert candidates into DB
+    // await db.candidates.createMany({ data: candidates });
+
+    return NextResponse.json({
+      totalRows: candidates.length,
+      importedRows: candidates.length,
+      failedRows: 0,
+      duration: 1150
+    });
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message }, { status: 500 });
+  }
+}
+```
+
+---
+
 ## 📦 High-Volume Dual Upload: 10,000 Users (CSV) + 20,000 Images (ZIP)
 
 When onboarding users, candidates, students, or employees with companion image assets (e.g., photo IDs and signatures), activate **Dual Upload Mode**:
