@@ -30,6 +30,9 @@ FILE → PARSE → MAP → TRANSFORM → VALIDATE → EDIT → REVIEW → IMPORT
 |---|---|
 | **Multi-Format Parsing** | RFC-4180 CSV, TSV, XLS, XLSX. State-machine handling for quotes, newlines, escaped quotes, BOM stripping, delimiter autodetection. |
 | **Multi-Sheet Workbooks** | Interactive worksheet detection, row/column counts, and sheet selection. |
+| **High-Volume Dual Upload** | Upload 10,000 candidate records in CSV alongside 20,000 user photos and signatures in a companion ZIP archive. |
+| **🔒 Dual Upload Gate** | When `enableZipUpload: true`, column mapping is strictly locked until **both** data spreadsheet and companion ZIP are uploaded and verified. |
+| **⚡ Zero-Memory ZIP Reader** | Inspects End of Central Directory (EOCD) table of contents in **<15ms**, indexing 20,000 files without browser memory bloat or tab crashes. |
 | **Intelligent Mapping** | 6 matching strategies: Exact, Case-Insensitive, Trimmed, Normalized, Alias, and Fuzzy matching with 0-1 confidence scoring. |
 | **High-Column Scalability** | Smooth vertical and horizontal scrolling with **sticky column headers** in mapping and review when files contain dozens or hundreds of columns. |
 | **Bidirectional Navigation** | Effortlessly return to **Column Mapping** from the review spreadsheet, jump back via interactive header stepper clicks, or go back to change sheets. |
@@ -46,128 +49,523 @@ FILE → PARSE → MAP → TRANSFORM → VALIDATE → EDIT → REVIEW → IMPORT
 
 ---
 
-## 📦 How to Use in Any Project
+## 📦 Installation & Setup
 
-You can use `data-importer` in any project using one of the following methods:
-
-### Method 1: Install Directly from GitHub
+Install the package via npm, pnpm, or yarn, and import the stylesheet in your root application file (`main.tsx`, `index.tsx`, or `App.tsx`):
 
 ```bash
-# Using Git repository URL
-npm install "git+https://github.com/Rahul-VTL/bulk-upload.git#path:packages/data-importer"
-# or
-pnpm add "git+https://github.com/Rahul-VTL/bulk-upload.git#path:packages/data-importer"
-# or
-yarn add "git+https://github.com/Rahul-VTL/bulk-upload.git#path:packages/data-importer"
-```
-
-### Method 2: Local Tarball (`npm pack`)
-You can pack the package into a `.tgz` file and install it in any project without publishing to npm:
-
-1. Inside `data-importer`:
-   ```bash
-   pnpm build
-   npm pack
-   # Output: data-importer-1.0.0.tgz
-   ```
-
-2. In your target project:
-   ```bash
-   npm install /path/to/data-importer-1.0.0.tgz
-   # or
-   pnpm add /path/to/data-importer-1.0.0.tgz
-   ```
-
-### Method 3: Local Directory Reference (`file:`)
-In `package.json` of your target project:
-```json
-{
-  "dependencies": {
-    "data-importer": "file:../path-to/bulk-upload/packages/data-importer"
-  }
-}
-```
-
-### Method 4: Install from npm (Once Published)
-```bash
+# NPM
 npm install data-importer
-# or
+
+# PNPM
 pnpm add data-importer
+
+# Yarn
+yarn add data-importer
+```
+
+```tsx
+// In main.tsx, index.tsx, or App.tsx
+import 'data-importer/styles.css';
 ```
 
 ---
 
-## ⚡ Quick Start
+## 📦 High-Volume Dual Upload: 10,000 Users (CSV) + 20,000 Images (ZIP)
 
-### 1. React Application (Default Turnkey UI)
+When onboarding users, candidates, students, or employees with companion image assets (e.g., photo IDs and signatures), activate **Dual Upload Mode**:
 
 ```tsx
-import React, { useState } from 'react';
-import { DataImporter, builtInValidators, builtInTransformers } from 'data-importer/react';
+import React from 'react';
+import { DataImporter, ImporterSchema } from 'data-importer/react';
 import 'data-importer/styles.css';
 
-const schema = [
-  {
-    key: 'name',
-    label: 'Customer Name',
-    type: 'string',
+const candidateSchema: ImporterSchema = [
+  { key: 'registrationNo', label: 'Registration No', type: 'string', required: true, unique: true },
+  { key: 'fullName', label: 'Candidate Name', type: 'string', required: true },
+  { key: 'email', label: 'Email Address', type: 'email', required: true },
+  { key: 'phone', label: 'Phone Number', type: 'phone', required: true },
+  { 
+    key: 'photo', 
+    label: 'Photo Filename', 
+    type: 'string', 
     required: true,
-    aliases: ['client_name', 'account'],
-    transformers: [builtInTransformers.trim()]
+    description: 'Filename inside the companion ZIP archive (e.g. CAND_001_photo.jpg)'
   },
-  {
-    key: 'email',
-    label: 'Email Address',
-    type: 'email',
+  { 
+    key: 'signature', 
+    label: 'Signature Filename', 
+    type: 'string', 
     required: true,
-    unique: true,
-    aliases: ['e-mail', 'mail'],
-    validators: [builtInValidators.email()]
-  },
-  {
-    key: 'phone',
-    label: 'Phone Number',
-    type: 'string',
-    validators: [builtInValidators.phone()]
-  },
-  {
-    key: 'plan',
-    label: 'Plan Tier',
-    type: 'enum',
-    options: [
-      { label: 'Free', value: 'free' },
-      { label: 'Pro', value: 'pro' },
-      { label: 'Enterprise', value: 'enterprise' }
-    ]
+    description: 'Filename inside the companion ZIP archive (e.g. CAND_001_sign.png)'
   }
 ];
 
-export function UserImportPopup({ onBackToListing }) {
-  const [isOpen, setIsOpen] = useState(true);
-
-  const handleImport = async (rows) => {
-    // rows contains only valid records if user chooses "Import Valid Only"
-    const response = await fetch('/api/customers/bulk-import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ records: rows })
-    });
-    return await response.json();
-  };
-
+export const CandidateBulkImporter = () => {
   return (
     <DataImporter
-      schema={schema}
-      theme={{ primary: '#003366' }}
-      onImport={handleImport}
-      onBackToListing={onBackToListing}
-      backToListingLabel="Back to Customers"
-      onComplete={(result) => {
-        console.log('Import finished:', result);
+      schema={candidateSchema}
+      // 🔑 Activates Dual Upload Mode (Requires both CSV and ZIP before mapping)
+      enableZipUpload={true}
+      zipUploadLabel="Upload ZIP containing all 20,000 candidate photos and signatures"
+      // 🔑 Automatically validates that filenames in the CSV actually exist in the ZIP
+      zipAssetColumns={['photo', 'signature']}
+      onImport={async (rows, onProgress, meta) => {
+        // rows: Cleaned, validated, and mapped 10,000 JSON records
+        // meta.file: Original CSV File object
+        // meta.zipFile: Original ZIP File object containing 20,000 image assets
+        await handleBackendUpload(rows, onProgress, meta);
       }}
     />
   );
+};
+```
+
+### 🔒 Dual Upload Gate Rules
+- When `enableZipUpload: true`, **mapping is locked** until **BOTH** the CSV data spreadsheet and companion ZIP archive are uploaded.
+- The UI displays live status badges for both files. If only one file is uploaded, the **"Proceed to Field Mapping →"** button remains disabled with a helper alert.
+- **Zero-Memory ZIP Inspector**: The browser never unzips or buffers 20,000 files in memory. Instead, it inspects only the End of Central Directory (EOCD) binary footer in **<15ms**, indexing filenames with zero risk of browser OOM or tab crashes.
+
+---
+
+## 🚀 Real-Time Backend Integration Patterns
+
+Here are the 3 production-grade patterns to send both CSV records and companion ZIP files to your backend:
+
+### Pattern 1: Standard Multipart `FormData` (Direct API Upload)
+
+Sends cleaned rows as JSON alongside both the original CSV and ZIP archive in a single HTTP request with live percentage progress:
+
+#### Frontend Implementation (React)
+```typescript
+import axios from 'axios';
+
+const handleImportWithFormData = async (rows, onProgress, meta) => {
+  const formData = new FormData();
+
+  // 1. Cleaned and validated JSON records (10,000 candidates)
+  formData.append('data', JSON.stringify(rows));
+
+  // 2. Original CSV/Excel spreadsheet
+  if (meta?.file) {
+    formData.append('csvFile', meta.file);
+  }
+
+  // 3. Companion ZIP archive containing 20,000 photos & signatures
+  if (meta?.zipFile) {
+    formData.append('zipFile', meta.zipFile);
+  }
+
+  // 4. Send with live upload progress tracking
+  const response = await axios.post('/api/v1/candidates/bulk-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total) {
+        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress({
+          percentage: percent,
+          processed: progressEvent.loaded,
+          total: progressEvent.total,
+          successCount: Math.round((percent / 100) * rows.length),
+          failureCount: 0
+        });
+      }
+    }
+  });
+
+  return response.data;
+};
+```
+
+#### Backend Implementation (Node.js / Express + Multer)
+```javascript
+import express from 'express';
+import multer from 'multer';
+import unzipper from 'unzipper';
+import fs from 'fs';
+
+const upload = multer({ dest: '/tmp/uploads/' });
+const router = express.Router();
+
+router.post(
+  '/api/v1/candidates/bulk-upload',
+  upload.fields([{ name: 'zipFile', maxCount: 1 }, { name: 'csvFile', maxCount: 1 }]),
+  async (req, res) => {
+    try {
+      const candidates = JSON.parse(req.body.data); // 10,000 cleaned records
+      const zipFile = req.files['zipFile']?.[0];    // 20,000 image ZIP archive
+
+      console.log(`Received ${candidates.length} records and ZIP: ${zipFile?.originalname}`);
+
+      // Extract ZIP stream to destination directory or cloud storage
+      if (zipFile) {
+        fs.createReadStream(zipFile.path)
+          .pipe(unzipper.Extract({ path: `/data/assets/${req.body.batchId || 'batch-1'}` }));
+      }
+
+      // Batch insert candidate metadata records into Database
+      await db.candidates.bulkCreate(candidates);
+
+      return res.status(200).json({
+        totalRows: candidates.length,
+        importedRows: candidates.length,
+        failedRows: 0,
+        duration: 1200
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+);
+```
+
+---
+
+### Pattern 2: Cloud Storage / S3 Presigned URL (Enterprise Recommended 🚀)
+
+For datasets with 10k–50k records and 100MB–500MB ZIP files, uploading directly from the browser to Amazon S3 / Google Cloud Storage avoids web server memory exhaustion, reverse-proxy payload limits, and request timeouts:
+
+```
+[Browser] ──── 1. POST /presigned-url ────> [Backend API]
+[Browser] <─── 2. S3 Presigned URL ──────── [Backend API]
+[Browser] ──── 3. PUT (ZIP File) ─────────> [Amazon S3 Bucket]
+[Browser] ──── 4. POST (JSON + S3 Key) ───> [Backend Worker Queue (BullMQ/Celery)]
+```
+
+#### Frontend Implementation (React)
+```typescript
+import axios from 'axios';
+
+const handleImportWithPresignedUrl = async (rows, onProgress, meta) => {
+  // Step 1: Request S3 Presigned URL from backend
+  const { data: presignedData } = await axios.post('/api/v1/uploads/presigned-url', {
+    zipFileName: meta?.zipFile?.name,
+    zipContentType: meta?.zipFile?.type || 'application/zip',
+    totalCandidates: rows.length
+  });
+
+  const { zipUploadUrl, zipS3Key, batchId } = presignedData;
+
+  // Step 2: Directly stream ZIP file to Amazon S3 with progress tracking
+  if (meta?.zipFile) {
+    await axios.put(zipUploadUrl, meta.zipFile, {
+      headers: { 'Content-Type': meta.zipFile.type || 'application/zip' },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress({
+            percentage: percent,
+            processed: progressEvent.loaded,
+            total: progressEvent.total
+          });
+        }
+      }
+    });
+  }
+
+  // Step 3: Trigger backend background worker queue with candidate metadata & S3 key
+  await axios.post('/api/v1/candidates/process-batch', {
+    batchId,
+    zipS3Key,
+    candidates: rows
+  });
+
+  return {
+    totalRows: rows.length,
+    importedRows: rows.length,
+    failedRows: 0,
+    duration: 1500
+  };
+};
+```
+
+#### Backend Implementation (Python / FastAPI + AWS Boto3)
+```python
+from fastapi import FastAPI, BackgroundTasks
+import boto3
+import uuid
+
+app = FastAPI()
+s3_client = boto3.client('s3', region_name='ap-south-1')
+BUCKET_NAME = 'my-candidate-assets-bucket'
+
+@app.post('/api/v1/uploads/presigned-url')
+def generate_presigned_url(payload: dict):
+    batch_id = str(uuid.uuid4())
+    s3_key = f"uploads/{batch_id}/{payload['zipFileName']}"
+    
+    # Generate S3 presigned PUT URL valid for 30 minutes
+    presigned_url = s3_client.generate_presigned_url(
+        'put_object',
+        Params={'Bucket': BUCKET_NAME, 'Key': s3_key, 'ContentType': payload['zipContentType']},
+        ExpiresIn=1800
+    )
+    return {'zipUploadUrl': presigned_url, 'zipS3Key': s3_key, 'batchId': batch_id}
+
+@app.post('/api/v1/candidates/process-batch')
+def process_batch(payload: dict, background_tasks: BackgroundTasks):
+    # Enqueue background task to extract ZIP from S3 and insert candidates into DB
+    background_tasks.add_task(extract_zip_and_save_candidates, payload['zipS3Key'], payload['candidates'])
+    return {'status': 'processing', 'batchId': payload['batchId']}
+```
+
+---
+
+### Pattern 3: Chunked Streaming Uploads (`chunkSize={100}`)
+
+For streaming large datasets in micro-batches with automatic retries on failure:
+
+```tsx
+import { DataImporter, uploadInChunks } from 'data-importer/react';
+
+// Option A: Declarative chunking via DataImporter
+<DataImporter
+  schema={candidateSchema}
+  chunkSize={100} // Sends 100 records per HTTP request
+  enableZipUpload={true}
+  onUploadChunk={async (chunkRows, meta) => {
+    // meta.chunkIndex: Current chunk index (0, 1, 2...)
+    // meta.totalChunks: Total number of chunk batches
+    // meta.zipFile: Companion ZIP File attached to chunk
+    return await api.postChunk({
+      chunkIndex: meta.chunkIndex,
+      totalChunks: meta.totalChunks,
+      records: chunkRows
+    });
+  }}
+/>
+
+// Option B: Standalone uploadInChunks helper function
+const result = await uploadInChunks(
+  cleanedRows,
+  async (chunk, meta) => {
+    return await api.post('/api/candidates/chunk', {
+      chunkIndex: meta.chunkIndex,
+      items: chunk
+    });
+  },
+  {
+    chunkSize: 100,
+    retries: 3, // Auto-retry up to 3 times on network failure
+    onProgress: (p) => {
+      console.log(`Ingested ${p.processed} of ${p.total} (${p.percentage}%)`);
+    }
+  }
+);
+```
+
+---
+
+## 📋 Backend Payload & Response Contract (OpenAPI Specification)
+
+The `onImport` handler expects the backend response to adhere to this contract:
+
+```typescript
+interface ImportResult {
+  totalRows: number;      // Total number of rows evaluated
+  importedRows: number;   // Number of rows successfully written to database
+  failedRows: number;     // Number of rows that failed server-side insertion
+  duration?: number;      // Execution duration in milliseconds
+  
+  // Optional: Detailed row-level error reporting for precise UI highlighting
+  rowResults?: Array<{
+    rowId: string;        // ID matching the row from rows[i]._id or index
+    success: boolean;     // Whether this specific record succeeded
+    error?: string;       // Human-readable error message
+  }>;
 }
+```
+
+#### Example Success Response:
+```json
+{
+  "totalRows": 10000,
+  "importedRows": 10000,
+  "failedRows": 0,
+  "duration": 1840
+}
+```
+
+#### Example Partial Success Response (Invalid Records Downloadable):
+```json
+{
+  "totalRows": 10000,
+  "importedRows": 9998,
+  "failedRows": 2,
+  "rowResults": [
+    { "rowId": "row-412", "success": false, "error": "Email already exists in database" },
+    { "rowId": "row-899", "success": false, "error": "Signature file is corrupted" }
+  ]
+}
+```
+
+---
+
+## 🪟 Drop-in Modal Dialog (`DataImporterModal`)
+
+Open the importer inside an accessible modal dialog popup with backdrop blur and responsive sizing:
+
+```tsx
+import React, { useState } from 'react';
+import { DataImporterModal, ImporterSchema } from 'data-importer/react';
+import 'data-importer/styles.css';
+
+const schema: ImporterSchema = [
+  { key: 'name', label: 'Full Name', type: 'string', required: true },
+  { key: 'email', label: 'Email Address', type: 'email', required: true, unique: true },
+  { key: 'role', label: 'Role', type: 'enum', options: [
+    { label: 'Admin', value: 'admin' },
+    { label: 'User', value: 'user' }
+  ]}
+];
+
+export const UserImportModal = () => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div>
+      <button onClick={() => setIsOpen(true)}>
+        Upload / Import Data
+      </button>
+
+      <DataImporterModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Import Customer Records"
+        schema={schema}
+        onImport={async (rows, onProgress) => {
+          const response = await fetch('/api/import-users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rows })
+          });
+          return await response.json();
+        }}
+        onComplete={(result) => {
+          console.log('Import finished:', result);
+          setIsOpen(false);
+        }}
+      />
+    </div>
+  );
+};
+```
+
+---
+
+## 🎨 Headless Custom UI (`useDataImporter`)
+
+For 100% custom UI control (Tailwind, Shadcn, MUI, AntD), use the headless hook:
+
+```tsx
+import React from 'react';
+import { useDataImporter, ImporterSchema } from 'data-importer/react';
+
+export const CustomImporterWizard = ({ schema }: { schema: ImporterSchema }) => {
+  const {
+    state,
+    loadFile,
+    loadZipFile,
+    removeZipFile,
+    proceedToMapping,
+    setMapping,
+    autoMap,
+    updateCell,
+    undo,
+    redo,
+    deleteRows,
+    exportErrors,
+    import: runImport,
+    importValidOnly,
+    downloadInvalidRows,
+    reset
+  } = useDataImporter({
+    schema,
+    enableZipUpload: true,
+    onImport: async (rows, onProgress, meta) => {
+      return await api.bulkSubmit(rows, meta?.zipFile);
+    }
+  });
+
+  const { currentStep, file, zipFile, rows, statistics } = state;
+
+  return (
+    <div>
+      {/* Upload Step */}
+      {currentStep === 'upload' && (
+        <div>
+          {/* CSV File Input */}
+          <input
+            type="file"
+            accept=".csv,.xlsx"
+            onChange={(e) => e.target.files?.[0] && loadFile(e.target.files[0])}
+          />
+
+          {/* ZIP Archive Input */}
+          <input
+            type="file"
+            accept=".zip"
+            onChange={(e) => e.target.files?.[0] && loadZipFile(e.target.files[0])}
+          />
+
+          {/* Gated Proceed Button: Only enabled when both CSV and ZIP are loaded */}
+          <button
+            disabled={!file || !zipFile}
+            onClick={() => proceedToMapping()}
+          >
+            Proceed to Column Mapping →
+          </button>
+        </div>
+      )}
+
+      {/* Mapping Step */}
+      {currentStep === 'mapping' && (
+        <div>
+          <button onClick={autoMap}>Auto-Map Columns</button>
+        </div>
+      )}
+
+      {/* Review Step */}
+      {currentStep === 'review' && (
+        <div>
+          <h3>Reviewing {rows.length} records ({statistics.invalid} errors)</h3>
+
+          {/* Import Only Valid Rows */}
+          {statistics.invalid > 0 && statistics.valid > 0 && (
+            <button onClick={() => importValidOnly()}>
+              Upload Valid Only ({statistics.valid})
+            </button>
+          )}
+
+          {/* Import All */}
+          <button onClick={() => runImport()} disabled={statistics.invalid > 0}>
+            Upload All
+          </button>
+        </div>
+      )}
+
+      {/* Result Step */}
+      {currentStep === 'result' && (
+        <div>
+          <h3>Import Complete!</h3>
+          <p>Imported: {state.result?.importedRows} | Failed: {state.result?.failedRows}</p>
+
+          {/* Download Invalid Records Button */}
+          {state.result?.failedRows > 0 && (
+            <button onClick={() => downloadInvalidRows('csv')}>
+              Download Invalid Records ({state.result.failedRows})
+            </button>
+          )}
+
+          {/* Back to Listing Button */}
+          <button onClick={() => window.location.href = '/listing'}>
+            Back to Listing
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 ```
 
 ---
@@ -199,173 +597,6 @@ The result screen provides a **`Back to Listing`** button to return directly to 
   backToListingLabel="Back to Customers Listing"
 />
 ```
-
----
-
-## 🎨 Headless Custom UI (`useDataImporter`)
-
-For 100% custom UI control (Tailwind, Shadcn, MUI, AntD), use the headless hook:
-
-```tsx
-import { useDataImporter } from 'data-importer/react';
-
-function CustomImporter() {
-  const {
-    state,
-    loadFile,
-    setMapping,
-    confirmMappingAndPrepare,
-    updateCell,
-    undo,
-    redo,
-    setStep,
-    import: runImport,
-    importValidOnly,
-    downloadInvalidRows,
-    reset
-  } = useDataImporter({
-    schema,
-    onImport: async (rows) => {
-      return await myApi.submit(rows);
-    }
-  });
-
-  return (
-    <div>
-      {/* Upload Step */}
-      {state.currentStep === 'upload' && (
-        <input
-          type="file"
-          accept=".csv,.xlsx"
-          onChange={(e) => e.target.files?.[0] && loadFile(e.target.files[0])}
-        />
-      )}
-
-      {/* Review Step */}
-      {state.currentStep === 'review' && (
-        <div>
-          <h3>Total: {state.rows.length} | Valid: {state.statistics.valid} | Errors: {state.statistics.invalid}</h3>
-
-          {/* Import Only Valid Rows */}
-          {state.statistics.invalid > 0 && state.statistics.valid > 0 && (
-            <button onClick={() => importValidOnly()}>
-              Upload Valid Only ({state.statistics.valid})
-            </button>
-          )}
-
-          {/* Import All */}
-          <button onClick={() => runImport()} disabled={state.statistics.invalid > 0}>
-            Upload All
-          </button>
-        </div>
-      )}
-
-      {/* Result Step */}
-      {state.currentStep === 'result' && (
-        <div>
-          <h3>Import Complete!</h3>
-          <p>Imported: {state.result?.importedRows} | Failed: {state.result?.failedRows}</p>
-
-          {/* Download Invalid Records Button */}
-          {state.result?.failedRows > 0 && (
-            <button onClick={() => downloadInvalidRows('csv')}>
-              Download Invalid Records ({state.result.failedRows})
-            </button>
-          )}
-
-          {/* Back to Listing Button */}
-          <button onClick={() => window.location.href = '/listing'}>
-            Back to Listing
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-```
-
----
-
-## ⚡ Chunked Upload for Large Files
-
-Upload 10,000+ rows smoothly in chunks:
-
-```tsx
-<DataImporter
-  schema={schema}
-  chunkSize={100} // sends 100 rows per chunk
-  onUploadChunk={async (chunk, meta) => {
-    // meta: { chunkIndex, totalChunks, startIndex, endIndex, totalRows }
-    await fetch('/api/import-chunk', {
-      method: 'POST',
-      body: JSON.stringify({ chunk, meta })
-    });
-  }}
-  onBackToListing={() => navigate('/listing')}
-/>
-```
-
----
-
-## 📦 High-Volume Dual Upload (10k Users CSV + 20k Photos/Signatures ZIP)
-
-When onboarding users, candidates, or employees with companion image assets (e.g., candidate photos and signatures), you can activate **Dual Upload Mode**:
-
-```tsx
-<DataImporter
-  schema={candidateSchema}
-  enableZipUpload={true}
-  zipUploadLabel="Upload ZIP containing all 20,000 photos and signatures"
-  zipAssetColumns={['photo', 'signature']}
-  onImport={async (rows, progress, meta) => {
-    // rows: 10,000 validated JSON records
-    // meta.file: Original CSV file
-    // meta.zipFile: Original ZIP file containing 20,000 images
-    await handleBackendUpload(rows, meta.zipFile, meta.file, progress);
-  }}
-/>
-```
-
-### 🔒 Dual Upload Gate
-When `enableZipUpload: true`:
-- The user **cannot proceed to Field Mapping** until **BOTH** the CSV data spreadsheet and the companion ZIP archive are uploaded.
-- The UI displays live status badges for both files and disables the mapping trigger until both are loaded and verified.
-- ZIP inspection reads only the **End of Central Directory (EOCD)** in **<15ms**, indexing 20,000 file entries with zero browser memory bloat or tab crashes.
-
----
-
-## 🚀 Real-Time Backend Integration Patterns
-
-### Pattern 1: Multipart `FormData` (Standard API)
-Sends cleaned rows alongside the original files to your backend in a single multipart request:
-
-```typescript
-const handleImport = async (rows, onProgress, meta) => {
-  const formData = new FormData();
-  formData.append('data', JSON.stringify(rows));
-  if (meta?.file) formData.append('csvFile', meta.file);
-  if (meta?.zipFile) formData.append('zipFile', meta.zipFile);
-
-  const response = await axios.post('/api/v1/candidates/bulk-upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    onUploadProgress: (e) => {
-      if (e.total) {
-        const percent = Math.round((e.loaded * 100) / e.total);
-        onProgress({ percentage: percent, processed: e.loaded, total: e.total });
-      }
-    }
-  });
-
-  return response.data;
-};
-```
-
-### Pattern 2: Cloud Storage / S3 Presigned URL (Enterprise Recommended 🚀)
-For 10k–50k records and 100MB–500MB ZIP files, upload directly from the browser to Amazon S3 / GCS to prevent web server timeouts:
-
-1. **Request S3 Presigned URL**: Frontend requests an upload URL from backend (`POST /api/uploads/presigned-url`).
-2. **Direct PUT to S3**: Browser uploads `meta.zipFile` directly to S3 with live progress.
-3. **Dispatch Async Job**: Send cleaned candidate rows + S3 object key to backend worker queue (BullMQ / Celery).
 
 ---
 
