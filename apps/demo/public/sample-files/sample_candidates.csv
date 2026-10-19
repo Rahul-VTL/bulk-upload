@@ -1,0 +1,8 @@
+Candidate ID,Full Name,Email,Phone,Photo Filename,Signature Filename
+USR-1001,Rahul Kumar,rahul.k@example.com,+91 9876543210,usr1001_photo.jpg,usr1001_sign.png
+USR-1002,Priya Sharma,priya.s@example.com,+91 9876543211,usr1002_photo.jpg,usr1002_sign.png
+USR-1003,Amit Verma,amit.v@example.com,+91 9876543212,usr1003_photo.jpg,usr1003_sign.png
+USR-1004,Sneha Patel,sneha.p@example.com,+91 9876543213,usr1004_photo.jpg,usr1004_sign.png
+USR-1005,Vikram Singh,vikram.s@example.com,+91 9876543214,usr1005_photo.jpg,usr1005_sign.png
+USR-1006,Ananya Roy,ananya.r@example.com,+91 9876543215,usr1006_missing_photo.jpg,usr1006_sign.png
+USR-1007,Karan Mehta,karan.m@example.com,+91 9876543216,usr1007_photo.jpg,usr1007_missing_sign.png

@@ -28,9 +28,13 @@ export interface DataImporterProps {
   checkDuplicate?: (row: Record<string, unknown>) => boolean | Promise<boolean>;
   chunkSize?: number;
   onUploadChunk?: (chunkRows: Record<string, unknown>[], meta: any) => Promise<any>;
+  enableZipUpload?: boolean;
+  zipUploadLabel?: string;
+  zipAssetColumns?: string[];
   onImport?: (
     rows: Record<string, unknown>[],
-    progressCallback: (progress: ImportProgress) => void
+    progressCallback: (progress: ImportProgress) => void,
+    meta?: import('../types').ImportContextMeta
   ) => Promise<ImportResult | ImportRowResult[] | void>;
   onComplete?: (result: ImportResult) => void;
   onCancel?: () => void;
@@ -64,6 +68,9 @@ export const DataImporter: React.FC<DataImporterProps> = ({
   checkDuplicate,
   chunkSize,
   onUploadChunk,
+  enableZipUpload = false,
+  zipUploadLabel,
+  zipAssetColumns,
   onImport,
   onComplete,
   onCancel,
@@ -92,6 +99,9 @@ export const DataImporter: React.FC<DataImporterProps> = ({
     checkDuplicate,
     chunkSize,
     onUploadChunk,
+    enableZipUpload,
+    zipUploadLabel,
+    zipAssetColumns,
     onImport,
     onComplete,
     onCancel
@@ -185,9 +195,29 @@ export const DataImporter: React.FC<DataImporterProps> = ({
                 maxFileSize={maxFileSize}
                 isLoading={state.isLoading}
                 loadingMessage={state.loadingMessage}
+                enableZipUpload={enableZipUpload}
+                zipUploadLabel={zipUploadLabel}
+                file={state.file}
+                fileName={state.fileName}
+                fileRowCount={state.originalRows?.length || null}
+                zipFile={state.zipFile}
+                zipFileCount={state.zipFileCount}
                 onFileSelect={(file) => {
                   importerApi.loadFile(file).catch((err) => {
                     console.error('File load error:', err);
+                  });
+                }}
+                onZipSelect={(file) => {
+                  importerApi.loadZipFile(file).catch((err) => {
+                    console.error('ZIP load error:', err);
+                  });
+                }}
+                onZipRemove={() => {
+                  importerApi.removeZipFile();
+                }}
+                onProceedToMapping={() => {
+                  importerApi.proceedToMapping().catch((err) => {
+                    console.error('Proceed to mapping error:', err);
                   });
                 }}
               />

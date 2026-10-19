@@ -325,6 +325,80 @@ describe('Data Importer - Comprehensive Test Suite', () => {
       expect(res.duplicateRowIds.has('r3')).toBe(true);
       expect(res.duplicateRowIds.size).toBe(1);
     });
+
+    it('auto-detects natural unique columns like code or centre_code when unique is omitted', async () => {
+      const schema: ImporterSchema = [
+        { key: 'code', label: 'Centre Code', type: 'string' },
+        { key: 'name', label: 'Centre Name', type: 'string' }
+      ];
+
+      const dupEngine = new DuplicateEngine(schema);
+      const rows = [
+        { code: 'CTR001', name: 'Centre Alpha' },
+        { code: 'CTR002', name: 'Centre Beta' },
+        { code: 'CTR001', name: 'Centre Duplicate' }
+      ];
+
+      const res = await dupEngine.detectDuplicates(rows, ['r1', 'r2', 'r3']);
+      expect(res.duplicateRowIds.has('r3')).toBe(true);
+      expect(res.duplicateRowIds.size).toBe(1);
+    });
+
+    it('normalizes whitespace and case when matching duplicate entries', async () => {
+      const schema: ImporterSchema = [
+        { key: 'code', label: 'Centre Code', type: 'string', unique: true }
+      ];
+
+      const dupEngine = new DuplicateEngine(schema);
+      const rows = [
+        { code: 'CTR 001' },
+        { code: '  ctr   001  ' } // extra spaces and lowercase
+      ];
+
+      const res = await dupEngine.detectDuplicates(rows, ['r1', 'r2']);
+      expect(res.duplicateRowIds.has('r2')).toBe(true);
+      expect(res.duplicateRowIds.size).toBe(1);
+    });
+
+    it('resolves field values through column aliases and labels', async () => {
+      const schema: ImporterSchema = [
+        {
+          key: 'code',
+          label: 'Centre Code',
+          type: 'string',
+          unique: true,
+          aliases: ['centre_code', 'center_code']
+        }
+      ];
+
+      const dupEngine = new DuplicateEngine(schema);
+      const rows = [
+        { centre_code: 'CTR99' },
+        { center_code: 'CTR99' }
+      ];
+
+      const res = await dupEngine.detectDuplicates(rows, ['r1', 'r2']);
+      expect(res.duplicateRowIds.has('r2')).toBe(true);
+      expect(res.duplicateRowIds.size).toBe(1);
+    });
+
+    it('detects full-row duplicates when all columns match even without unique column', async () => {
+      const schema: ImporterSchema = [
+        { key: 'city', label: 'City', type: 'string' },
+        { key: 'state', label: 'State', type: 'string' }
+      ];
+
+      const dupEngine = new DuplicateEngine(schema);
+      const rows = [
+        { city: 'Delhi', state: 'Delhi' },
+        { city: 'Mumbai', state: 'Maharashtra' },
+        { city: 'Delhi', state: 'Delhi' }
+      ];
+
+      const res = await dupEngine.detectDuplicates(rows, ['r1', 'r2', 'r3']);
+      expect(res.duplicateRowIds.has('r3')).toBe(true);
+      expect(res.duplicateRowIds.size).toBe(1);
+    });
   });
 
   // 9. Filtering Engine
@@ -517,6 +591,59 @@ describe('Data Importer - Comprehensive Test Suite', () => {
 
       // Verify downloadInvalidRows doesn't throw
       expect(() => importer.downloadInvalidRows('csv')).not.toThrow();
+
+      importer.destroy();
+    });
+
+    it('dynamically updates duplicate detection and statistics when cell is updated or fixed', async () => {
+      const importer = createImporter({
+        schema: [
+          { key: 'code', label: 'Centre Code', type: 'string', unique: true },
+          { key: 'name', label: 'Centre Name', type: 'string', required: true }
+        ],
+        onImport: async () => ({
+          totalRows: 2,
+          validRows: 2,
+          invalidRows: 0,
+          warningRows: 0,
+          importedRows: 2,
+          failedRows: 0,
+          duration: 10
+        })
+      });
+
+      // 2 duplicate rows
+      const csvContent = 'Centre Code,Centre Name\nCTR001,Alpha Center\nCTR001,Beta Center';
+      const file = new File([csvContent], 'test_dups.csv', { type: 'text/csv' });
+
+      await importer.loadFile(file);
+      await importer.confirmMappingAndPrepare();
+
+      let state = importer.getState();
+      expect(state.statistics.total).toBe(2);
+      expect(state.statistics.valid).toBe(1);
+      expect(state.statistics.duplicates).toBe(1);
+      expect(state.duplicates.has(state.rowIds[1])).toBe(true);
+
+      // Edit the duplicate row's code to make it unique
+      importer.updateCell(state.rowIds[1], 'code', 'CTR002');
+
+      // Wait a tick for async validation
+      await new Promise((r) => setTimeout(r, 50));
+
+      state = importer.getState();
+      expect(state.statistics.duplicates).toBe(0);
+      expect(state.statistics.valid).toBe(2);
+      expect(state.duplicates.has(state.rowIds[1])).toBe(false);
+
+      // Revert via undo
+      importer.undo();
+      await new Promise((r) => setTimeout(r, 50));
+
+      state = importer.getState();
+      expect(state.statistics.duplicates).toBe(1);
+      expect(state.statistics.valid).toBe(1);
+      expect(state.duplicates.has(state.rowIds[1])).toBe(true);
 
       importer.destroy();
     });

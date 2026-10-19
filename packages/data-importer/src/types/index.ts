@@ -192,6 +192,16 @@ export interface ChunkMeta {
   startIndex: number;
   endIndex: number;
   totalRows: number;
+  zipFile?: File | null;
+}
+
+export interface ImportContextMeta {
+  zipFile?: File | null;
+  zipFileName?: string | null;
+  zipFileCount?: number | null;
+  file?: File | null;
+  fileName?: string | null;
+  totalRows?: number;
 }
 
 export type ChunkUploadHandler = (
@@ -270,12 +280,19 @@ export interface ImporterState {
   loadingMessage: string | null;
   progress: ImportProgress | null;
   result: ImportResult | null;
+  zipFile: File | null;
+  zipFileName: string | null;
+  zipFileSize: number | null;
+  zipFileCount: number | null;
+  zipFileNames: Set<string> | null;
 }
 
 export interface ImporterEvents {
   fileSelected: { file: File };
   fileParsed: { sheets: SheetInfo[]; headers: string[]; rowCount: number };
   sheetSelected: { sheetId: string };
+  zipFileSelected: { file: File; fileCount: number };
+  zipFileRemoved: void;
   mappingStarted: void;
   mappingCompleted: { mappings: ColumnMapping[] };
   mappingChanged: { mapping: ColumnMapping };
@@ -316,9 +333,16 @@ export interface ImporterOptions {
   chunkSize?: number;
   /** Handler invoked sequentially for each chunk of records */
   onUploadChunk?: ChunkUploadHandler;
+  /** Whether to enable optional or required companion ZIP archive upload for photos, signatures, etc. */
+  enableZipUpload?: boolean;
+  /** Optional custom label or description for the ZIP dropzone */
+  zipUploadLabel?: string;
+  /** Optional list of column keys that should be automatically verified against the ZIP file manifest */
+  zipAssetColumns?: string[];
   onImport?: (
     rows: Record<string, unknown>[],
-    progressCallback: (progress: ImportProgress) => void
+    progressCallback: (progress: ImportProgress) => void,
+    meta?: ImportContextMeta
   ) => Promise<ImportResult | ImportRowResult[] | void>;
   onComplete?: (result: ImportResult) => void;
   onCancel?: () => void;
@@ -358,6 +382,16 @@ export interface ComponentOverrides {
     maxFileSize?: number;
     isLoading?: boolean;
     loadingMessage?: string | null;
+    enableZipUpload?: boolean;
+    zipUploadLabel?: string;
+    file?: File | null;
+    fileName?: string | null;
+    fileRowCount?: number | null;
+    zipFile?: File | null;
+    zipFileCount?: number | null;
+    onZipSelect?: (file: File) => void;
+    onZipRemove?: () => void;
+    onProceedToMapping?: () => void;
   }>;
   SheetSelector?: React.ComponentType<{
     sheets: SheetInfo[];

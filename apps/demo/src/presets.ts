@@ -7,9 +7,72 @@ export interface PresetConfig {
   schema: ImporterSchema;
   sampleCsv: string;
   sampleTsv: string;
+  enableZipUpload?: boolean;
 }
 
 export const PRESETS: PresetConfig[] = [
+  {
+    id: 'user_zip',
+    title: 'Candidate Upload (CSV + ZIP Photos & Signatures)',
+    description: 'Bulk upload users with photo and signature filenames cross-verified in real-time against a ZIP archive.',
+    enableZipUpload: true,
+    schema: [
+      {
+        key: 'candidate_id',
+        label: 'Candidate ID',
+        type: 'string',
+        required: true,
+        unique: true,
+        aliases: ['id', 'user_id', 'roll_no', 'registration_no']
+      },
+      {
+        key: 'name',
+        label: 'Full Name',
+        type: 'string',
+        required: true,
+        aliases: ['candidate_name', 'full_name', 'user_name'],
+        transformers: [builtInTransformers.trim()]
+      },
+      {
+        key: 'email',
+        label: 'Email',
+        type: 'email',
+        required: true,
+        aliases: ['email_address', 'mail'],
+        validators: [builtInValidators.email()]
+      },
+      {
+        key: 'phone',
+        label: 'Phone Number',
+        type: 'phone',
+        aliases: ['mobile', 'contact_no']
+      },
+      {
+        key: 'photo',
+        label: 'Photo Filename',
+        type: 'string',
+        required: true,
+        aliases: ['photo_filename', 'pic', 'photo_file', 'user_photo']
+      },
+      {
+        key: 'signature',
+        label: 'Signature Filename',
+        type: 'string',
+        required: true,
+        aliases: ['signature_filename', 'sign', 'sign_file', 'user_signature']
+      }
+    ],
+    sampleCsv: `Candidate ID,Full Name,Email,Phone,Photo Filename,Signature Filename
+USR-1001,Rahul Kumar,rahul.k@example.com,+91 9876543210,usr1001_photo.jpg,usr1001_sign.png
+USR-1002,Priya Sharma,priya.s@example.com,+91 9876543211,usr1002_photo.jpg,usr1002_sign.png
+USR-1003,Amit Verma,amit.v@example.com,+91 9876543212,usr1003_photo.jpg,usr1003_sign.png
+USR-1004,Sneha Patel,sneha.p@example.com,+91 9876543213,usr1004_photo.jpg,usr1004_sign.png
+USR-1005,Vikram Singh,vikram.s@example.com,+91 9876543214,usr1005_photo.jpg,usr1005_sign.png
+USR-1006,Ananya Roy,ananya.r@example.com,+91 9876543215,usr1006_missing_photo.jpg,usr1006_sign.png
+USR-1007,Karan Mehta,karan.m@example.com,+91 9876543216,usr1007_photo.jpg,usr1007_missing_sign.png`,
+    sampleTsv: `Candidate ID\tFull Name\tEmail\tPhone\tPhoto Filename\tSignature Filename
+USR-1001\tRahul Kumar\trahul.k@example.com\t+91 9876543210\tusr1001_photo.jpg\tusr1001_sign.png`
+  },
   {
     id: 'customer',
     title: 'Customer Import',

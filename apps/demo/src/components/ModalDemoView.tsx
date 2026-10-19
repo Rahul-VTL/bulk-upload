@@ -6,7 +6,8 @@ interface ModalDemoViewProps {
   selectedPreset: PresetConfig;
   handleImport: (
     rows: Record<string, unknown>[],
-    onProgress: (p: ImportProgress) => void
+    onProgress: (p: ImportProgress) => void,
+    meta?: import('data-importer').ImportContextMeta
   ) => Promise<ImportResult>;
 }
 
@@ -20,9 +21,10 @@ export const ModalDemoView: React.FC<ModalDemoViewProps> = ({
 
   const onImportWithCapture = async (
     rows: Record<string, unknown>[],
-    onProgress: (p: ImportProgress) => void
+    onProgress: (p: ImportProgress) => void,
+    meta?: import('data-importer').ImportContextMeta
   ): Promise<ImportResult> => {
-    const res = await handleImport(rows, onProgress);
+    const res = await handleImport(rows, onProgress, meta);
     setLastImportResult(res);
     setImportedData(rows);
     return res;
@@ -179,6 +181,7 @@ export const ModalDemoView: React.FC<ModalDemoViewProps> = ({
         onClose={() => setIsModalOpen(false)}
         title={`Import ${selectedPreset.title} Records`}
         schema={selectedPreset.schema}
+        enableZipUpload={selectedPreset.enableZipUpload}
         onImport={onImportWithCapture}
         onComplete={(result) => {
           console.log('[Modal Demo] Completed:', result);

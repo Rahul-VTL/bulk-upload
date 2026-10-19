@@ -3,25 +3,42 @@
   "version": "1.0.0",
   "description": "Production-grade, reusable, framework-agnostic Data Importer, Data Preparation & Editable Spreadsheet Library",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
     },
     "./react": {
-      "types": "./dist/react.d.ts",
-      "import": "./dist/react.js",
-      "default": "./dist/react.js"
+      "types": "./src/react.ts",
+      "import": "./src/react.ts",
+      "default": "./src/react.ts"
     },
-    "./styles.css": "./dist/react.css",
-    "./react.css": "./dist/react.css"
+    "./styles.css": "./src/theme/theme.css",
+    "./react.css": "./src/theme/theme.css"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      },
+      "./react": {
+        "types": "./dist/react.d.ts",
+        "import": "./dist/react.js",
+        "default": "./dist/react.js"
+      },
+      "./styles.css": "./dist/react.css",
+      "./react.css": "./dist/react.css"
+    }
   },
   "files": [
     "dist",

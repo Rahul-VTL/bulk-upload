@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useDataImporter, DataImporter, ImportProgress, ImportResult } from 'data-importer/react';
+import { ImporterSchema, ValidationRule } from 'data-importer';
 import './custom-ui/custom-styles.css';
 import { PRESETS, PresetConfig } from './presets';
 import { CustomHeader, PlaygroundMode } from './custom-ui/CustomHeader';
@@ -9,22 +10,64 @@ import { CustomMappingStep } from './custom-ui/CustomMappingStep';
 import { CustomReviewStep } from './custom-ui/CustomReviewStep';
 import { CustomImportingStep } from './custom-ui/CustomImportingStep';
 import { CustomResultStep } from './custom-ui/CustomResultStep';
-import { AutoShimmerDemo } from './components/AutoShimmerDemo';
 import { ModalDemoView } from './components/ModalDemoView';
 import { DocsGuide } from './components/DocsGuide';
+import { ZipManifest } from './utils/zipUtils';
 
 export const App: React.FC = () => {
   const [selectedPreset, setSelectedPreset] = useState<PresetConfig>(PRESETS[0]);
   const [activeMode, setActiveMode] = useState<PlaygroundMode>('custom');
   const [isFullScreenDefault, setIsFullScreenDefault] = useState<boolean>(false);
+  const [zipManifest, setZipManifest] = useState<ZipManifest | null>(null);
+  const [zipFile, setZipFile] = useState<File | null>(null);
 
-  // Simulated backend API import handler
+  // Cross-validation schema when ZIP archive is loaded
+  const activeSchema: ImporterSchema = useMemo(() => {
+    if (!zipManifest) {
+      return selectedPreset.schema;
+    }
+    return selectedPreset.schema.map((col) => {
+      if (col.key === 'photo' || col.key === 'signature') {
+        const zipRule: ValidationRule = {
+          name: 'zip-asset-exists',
+          validator: (val: unknown) => {
+            if (val === null || val === undefined || String(val).trim() === '') {
+              return true;
+            }
+            const str = String(val).trim().toLowerCase();
+            if (!zipManifest.fileNames.has(str)) {
+              return `File "${val}" not found in uploaded ZIP (${zipManifest.fileCount} files scanned)`;
+            }
+            return true;
+          }
+        };
+        return {
+          ...col,
+          validators: [...(col.validators || []), zipRule]
+        };
+      }
+      return col;
+    });
+  }, [selectedPreset, zipManifest]);
+
+  const effectivePreset = useMemo(
+    () => ({ ...selectedPreset, schema: activeSchema }),
+    [selectedPreset, activeSchema]
+  );
+
+  // Simulated backend API import handler receiving both CSV rows AND companion ZIP!
   const handleImport = async (
     rows: Record<string, unknown>[],
-    onProgress: (p: ImportProgress) => void
+    onProgress: (p: ImportProgress) => void,
+    meta?: import('data-importer').ImportContextMeta
   ): Promise<ImportResult> => {
     const startTime = performance.now();
-    console.log(`[API Import] Sending ${rows.length} records to backend:`, rows);
+    console.log(`[API Import] Ingesting ${rows.length} rows to backend`);
+    if (meta?.zipFile) {
+      console.log(`[API Import] Companion ZIP Archive included: "${meta.zipFile.name}" (${(meta.zipFile.size / 1024).toFixed(1)} KB, ${meta.zipFileCount || 0} files)`);
+    } else {
+      console.log(`[API Import] Standard CSV-only ingestion (no ZIP archive attached)`);
+    }
 
     // Simulate batch progress
     const total = rows.length;
@@ -55,7 +98,8 @@ export const App: React.FC = () => {
 
   // 100% Headless hook powering the custom UI
   const customImporterApi = useDataImporter({
-    schema: selectedPreset.schema,
+    schema: activeSchema,
+    enableZipUpload: selectedPreset.enableZipUpload,
     onImport: handleImport
   });
 
@@ -88,6 +132,7 @@ export const App: React.FC = () => {
         <DataImporter
           key={selectedPreset.id}
           schema={selectedPreset.schema}
+          enableZipUpload={selectedPreset.enableZipUpload}
           onImport={handleImport}
           onCancel={() => {
             customImporterApi.reset();
@@ -104,7 +149,13 @@ export const App: React.FC = () => {
       <CustomHeader
         api={customImporterApi}
         selectedPreset={selectedPreset}
-        onSelectPreset={setSelectedPreset}
+        onSelectPreset={(p) => {
+          setSelectedPreset(p);
+          if (!p.enableZipUpload) {
+            setZipManifest(null);
+            setZipFile(null);
+          }
+        }}
         activeMode={activeMode}
         onSelectMode={setActiveMode}
       />
@@ -118,7 +169,18 @@ export const App: React.FC = () => {
             {currentStep === 'upload' && (
               <CustomUploadStep
                 api={customImporterApi}
-                preset={selectedPreset}
+                preset={effectivePreset}
+                zipManifest={zipManifest}
+                onZipLoaded={(manifest, file) => {
+                  setZipManifest(manifest);
+                  setZipFile(file);
+                  if (file) {
+                    customImporterApi.loadZipFile(file).catch(console.error);
+                  } else {
+                    customImporterApi.removeZipFile();
+                  }
+                }}
+                zipFile={zipFile}
               />
             )}
 
@@ -129,14 +191,14 @@ export const App: React.FC = () => {
             {currentStep === 'mapping' && (
               <CustomMappingStep
                 api={customImporterApi}
-                preset={selectedPreset}
+                preset={effectivePreset}
               />
             )}
 
             {currentStep === 'review' && (
               <CustomReviewStep
                 api={customImporterApi}
-                preset={selectedPreset}
+                preset={effectivePreset}
               />
             )}
 
@@ -207,20 +269,12 @@ export const App: React.FC = () => {
             <DataImporter
               key={selectedPreset.id}
               schema={selectedPreset.schema}
+              enableZipUpload={selectedPreset.enableZipUpload}
               chunkSize={50}
               onImport={handleImport}
               onCancel={customImporterApi.reset}
               style={{ width: '100%', height: '100%' }}
             />
-          </div>
-        )}
-
-        {activeMode === 'shimmer' && (
-          /* ============================================================ */
-          /* ✨ AUTOSHIMMER SYSTEM SHOWCASE                               */
-          /* ============================================================ */
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            <AutoShimmerDemo />
           </div>
         )}
 

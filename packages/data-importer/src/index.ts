@@ -17,6 +17,7 @@ export * from './parser/parser-registry';
 export * from './parser/csv/csv-parser';
 export * from './parser/tsv/tsv-parser';
 export * from './parser/xlsx/xlsx-parser';
+export * from './parser/zip/zip-reader';
 
 // Mapping
 export * from './mapper/fuzzy/string-similarity';

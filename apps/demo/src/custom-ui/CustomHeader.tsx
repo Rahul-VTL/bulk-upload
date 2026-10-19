@@ -2,7 +2,7 @@ import React from 'react';
 import { PRESETS, PresetConfig } from '../presets';
 import { UseDataImporterReturn } from 'data-importer/react';
 
-export type PlaygroundMode = 'custom' | 'modal' | 'default' | 'shimmer' | 'docs';
+export type PlaygroundMode = 'custom' | 'modal' | 'default' | 'docs';
 
 interface CustomHeaderProps {
   api: UseDataImporterReturn;
@@ -151,24 +151,6 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => onSelectMode('shimmer')}
-              style={{
-                padding: '5px 11px',
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                background: activeMode === 'shimmer' ? '#ffffff' : 'transparent',
-                color: activeMode === 'shimmer' ? 'var(--c-primary)' : 'var(--c-text-muted)',
-                boxShadow: activeMode === 'shimmer' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              ✨ AutoShimmer
-            </button>
-            <button
-              type="button"
               onClick={() => onSelectMode('docs')}
               style={{
                 padding: '5px 11px',
@@ -183,7 +165,7 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
                 transition: 'all 0.15s ease'
               }}
             >
-              📖 Docs & Guide
+              📖 Docs & Backend Guide
             </button>
           </div>
 

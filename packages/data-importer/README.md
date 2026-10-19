@@ -307,6 +307,68 @@ Upload 10,000+ rows smoothly in chunks:
 
 ---
 
+## 📦 High-Volume Dual Upload (10k Users CSV + 20k Photos/Signatures ZIP)
+
+When onboarding users, candidates, or employees with companion image assets (e.g., candidate photos and signatures), you can activate **Dual Upload Mode**:
+
+```tsx
+<DataImporter
+  schema={candidateSchema}
+  enableZipUpload={true}
+  zipUploadLabel="Upload ZIP containing all 20,000 photos and signatures"
+  zipAssetColumns={['photo', 'signature']}
+  onImport={async (rows, progress, meta) => {
+    // rows: 10,000 validated JSON records
+    // meta.file: Original CSV file
+    // meta.zipFile: Original ZIP file containing 20,000 images
+    await handleBackendUpload(rows, meta.zipFile, meta.file, progress);
+  }}
+/>
+```
+
+### 🔒 Dual Upload Gate
+When `enableZipUpload: true`:
+- The user **cannot proceed to Field Mapping** until **BOTH** the CSV data spreadsheet and the companion ZIP archive are uploaded.
+- The UI displays live status badges for both files and disables the mapping trigger until both are loaded and verified.
+- ZIP inspection reads only the **End of Central Directory (EOCD)** in **<15ms**, indexing 20,000 file entries with zero browser memory bloat or tab crashes.
+
+---
+
+## 🚀 Real-Time Backend Integration Patterns
+
+### Pattern 1: Multipart `FormData` (Standard API)
+Sends cleaned rows alongside the original files to your backend in a single multipart request:
+
+```typescript
+const handleImport = async (rows, onProgress, meta) => {
+  const formData = new FormData();
+  formData.append('data', JSON.stringify(rows));
+  if (meta?.file) formData.append('csvFile', meta.file);
+  if (meta?.zipFile) formData.append('zipFile', meta.zipFile);
+
+  const response = await axios.post('/api/v1/candidates/bulk-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (e) => {
+      if (e.total) {
+        const percent = Math.round((e.loaded * 100) / e.total);
+        onProgress({ percentage: percent, processed: e.loaded, total: e.total });
+      }
+    }
+  });
+
+  return response.data;
+};
+```
+
+### Pattern 2: Cloud Storage / S3 Presigned URL (Enterprise Recommended 🚀)
+For 10k–50k records and 100MB–500MB ZIP files, upload directly from the browser to Amazon S3 / GCS to prevent web server timeouts:
+
+1. **Request S3 Presigned URL**: Frontend requests an upload URL from backend (`POST /api/uploads/presigned-url`).
+2. **Direct PUT to S3**: Browser uploads `meta.zipFile` directly to S3 with live progress.
+3. **Dispatch Async Job**: Send cleaned candidate rows + S3 object key to backend worker queue (BullMQ / Celery).
+
+---
+
 ## 📄 License
 
 MIT

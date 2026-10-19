@@ -27,6 +27,10 @@ export class ImportEngine {
       originalTotalRows?: number;
       skippedInvalidCount?: number;
       skippedRowErrors?: Record<string, ValidationError[]>;
+      zipFile?: File | null;
+      zipFileName?: string | null;
+      file?: File | null;
+      fileName?: string | null;
     }
   ): Promise<ImportResult> {
     const startTime = Date.now();
@@ -81,6 +85,7 @@ export class ImportEngine {
         const uploadResult = await uploadInChunks(
           rows,
           async (chunk: Record<string, unknown>[], chunkMeta: ChunkMeta) => {
+            chunkMeta.zipFile = meta?.zipFile || null;
             return await this.options.onUploadChunk!(chunk, chunkMeta);
           },
           {
@@ -116,8 +121,15 @@ export class ImportEngine {
         const chunkSize = this.options.chunkSize || this.options.batchSize || 100;
         const uploadResult = await uploadInChunks(
           rows,
-          async (chunk: Record<string, unknown>[], _meta: ChunkMeta) => {
-            return await this.options.onImport!(chunk, () => {});
+          async (chunk: Record<string, unknown>[], chunkMeta: ChunkMeta) => {
+            chunkMeta.zipFile = meta?.zipFile || null;
+            return await this.options.onImport!(chunk, () => {}, {
+              zipFile: meta?.zipFile || null,
+              zipFileName: meta?.zipFileName || meta?.zipFile?.name || null,
+              file: meta?.file || null,
+              fileName: meta?.fileName || null,
+              totalRows: rows.length
+            });
           },
           {
             chunkSize,
@@ -149,9 +161,19 @@ export class ImportEngine {
     // Mode C: Standard onImport (single batch with progress callback)
     if (this.options.onImport) {
       try {
-        const response = await this.options.onImport(rows, (p) => {
-          if (onProgress) onProgress(p);
-        });
+        const response = await this.options.onImport(
+          rows,
+          (p) => {
+            if (onProgress) onProgress(p);
+          },
+          {
+            zipFile: meta?.zipFile || null,
+            zipFileName: meta?.zipFileName || meta?.zipFile?.name || null,
+            file: meta?.file || null,
+            fileName: meta?.fileName || null,
+            totalRows: rows.length
+          }
+        );
 
         const duration = Date.now() - startTime;
 

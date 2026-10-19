@@ -28,6 +28,7 @@ import { SelectionManager } from '../../grid/selection/selection-manager';
 import { ImportEngine } from '../../importer/import-engine';
 import { ErrorExporter } from '../../importer/error-exporter';
 import { ImporterError } from '../errors';
+import { inspectZipArchive } from '../../parser/zip/zip-reader';
 
 export class DataImporterCore {
   private schema: ImporterSchema;
@@ -118,7 +119,12 @@ export class DataImporterCore {
       isLoading: false,
       loadingMessage: null,
       progress: null,
-      result: null
+      result: null,
+      zipFile: null,
+      zipFileName: null,
+      zipFileSize: null,
+      zipFileCount: null,
+      zipFileNames: null
     };
   }
 
@@ -194,6 +200,37 @@ export class DataImporterCore {
     }
   }
 
+  public async loadZipFile(file: File): Promise<void> {
+    const inspection = await inspectZipArchive(file);
+    this.updateState({
+      zipFile: file,
+      zipFileName: file.name,
+      zipFileSize: file.size,
+      zipFileCount: inspection.fileCount,
+      zipFileNames: inspection.fileNames
+    });
+    this.events.emit('zipFileSelected', { file, fileCount: inspection.fileCount });
+
+    if (this.state.rows.length > 0) {
+      await this.validateAndDetectDuplicates(this.state.rows, this.state.rowIds);
+    }
+  }
+
+  public removeZipFile(): void {
+    this.updateState({
+      zipFile: null,
+      zipFileName: null,
+      zipFileSize: null,
+      zipFileCount: null,
+      zipFileNames: null
+    });
+    this.events.emit('zipFileRemoved', undefined);
+
+    if (this.state.rows.length > 0) {
+      this.validateAndDetectDuplicates(this.state.rows, this.state.rowIds);
+    }
+  }
+
   // --- Step 2: Parsing ---
 
   public async parse(): Promise<void> {
@@ -210,6 +247,21 @@ export class DataImporterCore {
       headers: parsed.headers,
       rowCount: parsed.totalRawRows
     });
+
+    if (this.options.enableZipUpload && !this.state.zipFile) {
+      // Both CSV and ZIP are required when enableZipUpload is true.
+      // Retain parsed headers and raw rows but keep user on 'upload' step until zipFile is uploaded.
+      this.updateState({
+        sheets: parsed.sheets,
+        selectedSheetId: parsed.selectedSheetId,
+        sourceHeaders: parsed.headers,
+        originalRows: parsed.rawRows,
+        isLoading: false,
+        loadingMessage: null,
+        currentStep: 'upload'
+      });
+      return;
+    }
 
     if (parsed.sheets.length > 1) {
       // Prompt user to select sheet
@@ -232,6 +284,24 @@ export class DataImporterCore {
         loadingMessage: null
       });
       await this.initMapping(parsed.headers, parsed.rawRows);
+    }
+  }
+
+  public async proceedToMapping(): Promise<void> {
+    if (!this.state.file) {
+      throw new ImporterError({ code: 'NO_FILE', message: 'Data spreadsheet file is required.' });
+    }
+    if (this.options.enableZipUpload && !this.state.zipFile) {
+      throw new ImporterError({
+        code: 'NO_ZIP_FILE',
+        message: 'Companion ZIP archive is required before proceeding to mapping.'
+      });
+    }
+
+    if (this.state.sheets.length > 1) {
+      this.updateState({ currentStep: 'sheet-select' });
+    } else {
+      await this.initMapping(this.state.sourceHeaders, this.state.originalRows);
     }
   }
 
@@ -400,16 +470,66 @@ export class DataImporterCore {
       combinedWarnings[cellKey].push(dWarn);
     }
 
-    const invalidCount = Object.keys(combinedRowErrors).length;
+    // Validate ZIP assets if zip is loaded
+    if (this.state.zipFileNames && this.state.zipFileNames.size > 0) {
+      const assetCols =
+        this.options.zipAssetColumns ||
+        this.schema
+          .filter(
+            (c) =>
+              /(photo|signature|image|avatar|pic|sign)/i.test(c.key) ||
+              /(photo|signature|image|pic|sign)/i.test(c.label || '')
+          )
+          .map((c) => c.key);
+
+      if (assetCols.length > 0) {
+        for (let r = 0; r < rows.length; r++) {
+          const row = rows[r];
+          const rowId = rowIds[r];
+          for (const colKey of assetCols) {
+            const val = row[colKey];
+            if (val !== null && val !== undefined && String(val).trim() !== '') {
+              const strVal = String(val).trim().toLowerCase();
+              if (!this.state.zipFileNames.has(strVal)) {
+                const cellKey = `${rowId}:${colKey}`;
+                const zipErr: ValidationError = {
+                  rowId,
+                  field: colKey,
+                  code: 'ZIP_ASSET_MISSING',
+                  message: `File "${val}" not found in uploaded ZIP archive (${this.state.zipFileCount} files)`,
+                  severity: 'error',
+                  value: val
+                };
+                if (!combinedErrors[cellKey]) combinedErrors[cellKey] = [];
+                combinedErrors[cellKey].push(zipErr);
+
+                if (!combinedRowErrors[rowId]) combinedRowErrors[rowId] = [];
+                combinedRowErrors[rowId].push(zipErr);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const valErrorRowIds = new Set(Object.keys(combinedRowErrors));
+    const dupRowIds = dupSummary.duplicateRowIds;
+
+    const invalidCount = valErrorRowIds.size;
     const warningCount = Object.keys(combinedWarnings).length;
-    const validCount = Math.max(0, rows.length - invalidCount);
+    let validCount = 0;
+    for (const rId of rowIds) {
+      if (!valErrorRowIds.has(rId) && !dupRowIds.has(rId)) {
+        validCount++;
+      }
+    }
 
     const statistics: ImportStatistics = {
       total: rows.length,
       valid: validCount,
       invalid: invalidCount,
       warnings: warningCount,
-      duplicates: dupSummary.duplicateRowIds.size,
+      duplicates: dupRowIds.size,
       empty: 0,
       imported: 0,
       failed: 0
@@ -695,64 +815,11 @@ export class DataImporterCore {
   }
 
   private async revalidateRow(
-    rowId: string,
-    rowIndex: number,
+    _rowId: string,
+    _rowIndex: number,
     rows: Record<string, unknown>[]
   ): Promise<void> {
-    const row = rows[rowIndex];
-    if (!row) return;
-
-    // Remove existing errors for this row
-    const newErrors = { ...this.state.errors };
-    const newRowErrors = { ...this.state.rowErrors };
-    const newWarnings = { ...this.state.warnings };
-
-    delete newRowErrors[rowId];
-    for (const col of this.schema) {
-      delete newErrors[`${rowId}:${col.key}`];
-      delete newWarnings[`${rowId}:${col.key}`];
-    }
-
-    // Validate each column
-    for (const col of this.schema) {
-      const issues = await this.validationEngine.validateField(
-        row[col.key],
-        row,
-        col.key,
-        rowIndex,
-        rows,
-        rowId
-      );
-
-      for (const issue of issues) {
-        const cellKey = `${rowId}:${col.key}`;
-        if (issue.severity === 'error') {
-          if (!newErrors[cellKey]) newErrors[cellKey] = [];
-          newErrors[cellKey].push(issue);
-
-          if (!newRowErrors[rowId]) newRowErrors[rowId] = [];
-          newRowErrors[rowId].push(issue);
-        } else if (issue.severity === 'warning') {
-          if (!newWarnings[cellKey]) newWarnings[cellKey] = [];
-          newWarnings[cellKey].push(issue);
-        }
-      }
-    }
-
-    const invalidCount = Object.keys(newRowErrors).length;
-    const warningCount = Object.keys(newWarnings).length;
-
-    this.updateState({
-      errors: newErrors,
-      rowErrors: newRowErrors,
-      warnings: newWarnings,
-      statistics: {
-        ...this.state.statistics,
-        invalid: invalidCount,
-        valid: Math.max(0, rows.length - invalidCount),
-        warnings: warningCount
-      }
-    });
+    await this.validateAndDetectDuplicates(rows, this.state.rowIds);
   }
 
   // --- Filtering & Sorting & Selection ---
@@ -879,7 +946,11 @@ export class DataImporterCore {
           onlyValid,
           originalTotalRows: this.state.rows.length,
           skippedInvalidCount,
-          skippedRowErrors
+          skippedRowErrors,
+          zipFile: this.state.zipFile,
+          zipFileName: this.state.zipFileName || this.state.zipFile?.name || null,
+          file: this.state.file,
+          fileName: this.state.fileName
         }
       );
 
@@ -938,6 +1009,14 @@ export class DataImporterCore {
   }
 
   public setStep(step: StepState): void {
+    if (
+      this.options.enableZipUpload &&
+      (step === 'mapping' || step === 'sheet-select' || step === 'review' || step === 'importing')
+    ) {
+      if (!this.state.file || !this.state.zipFile) {
+        return; // Block step transition until both files are uploaded
+      }
+    }
     this.updateState({ currentStep: step });
   }
 
